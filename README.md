@@ -6,6 +6,21 @@
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
 
+## 📖 About
+
+Smart One Click Setup is a powerful WordPress plugin designed to simplify the process of importing and exporting demo content, theme settings, and plugin configurations. Whether you're a theme author looking to provide a seamless demo import experience for your users, or a developer needing to migrate site configurations, this plugin has you covered.
+
+**What makes it special?**
+
+- **All-in-One Solution**: Export and import everything in a single ZIP file - no more managing multiple files
+- **Theme Author Friendly**: Easy integration with any WordPress theme through simple filters and helper classes
+- **Developer Focused**: Comprehensive hooks and filters for complete customization
+- **Elementor Ready**: Full support for Elementor templates, pages, and kit settings
+- **Universal Plugin Support**: Export settings from any WordPress plugin, not just predefined ones
+- **Remote & Local Support**: Import from remote URLs or local theme directories
+
+Perfect for theme authors who want to provide their users with a one-click demo import experience, and for developers who need to migrate complete site configurations between WordPress installations.
+
 ## 🎯 Key Features
 
 - **✨ One-Click ZIP Import/Export** - Export everything to a single ZIP file and import from a single ZIP file
