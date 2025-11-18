@@ -111,5 +111,5 @@ GNU General Public License for more details.
 
 ## 📞 Support
 
-For support, feature requests, or bug reports, please [open an issue](https://github.com/buildbycj/smart-one-click-setup/issues) on GitHub
+For support, feature requests, or bug reports, please [open an issue](https://github.com/buildbycj/smart-one-click-setup/issues) on GitHub.
 
