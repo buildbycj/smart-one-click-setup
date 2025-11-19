@@ -177,7 +177,6 @@ GNU General Public License for more details.
 ## 🙏 Credits
 
 - Built with WordPress coding standards
-- Uses [buildbycj/wp-content-importer-v2](https://github.com/buildbycj/wp-content-importer-v2) for content import
 
 ## 📞 Support
 
