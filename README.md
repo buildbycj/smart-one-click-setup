@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="logo.svg" alt="Smart One Click Setup Logo" width="160">
+</div>
+
 # Smart One Click Setup
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
