@@ -85,6 +85,19 @@ ImportHelper::add(
     'https://example.com/demo1'
 );
 
+// Or use the filter method
+add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
+	return array(
+		array(
+			'name'          => 'Business Demo',
+			'description'   => 'Perfect for business websites',
+			'preview_image' => 'https://example.com/previews/business.jpg',
+			'preview_url'   => 'https://example.com/demo/business',
+			'zip_url'       => 'https://example.com/demos/business.zip',
+		),
+	);
+} );
+
 // Display Smart Import with custom options
 socs_display_smart_import( array(
     'wrapper_class'          => 'my-custom-class',
