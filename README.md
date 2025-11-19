@@ -1,4 +1,4 @@
-<img src="logo.svg" alt="Smart One Click Setup Logo" width="160">
+<img src="logo.svg" alt="Smart One Click Setup Logo" width="80">
 
 # Smart One Click Setup
 
