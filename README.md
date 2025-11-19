@@ -84,6 +84,17 @@ ImportHelper::add(
     'https://example.com/preview1.jpg',
     'https://example.com/demo1'
 );
+
+// Display Smart Import with custom options
+socs_display_smart_import( array(
+    'wrapper_class'          => 'my-custom-class',
+    'show_header'            => false,
+    'show_sidebar'            => false,
+    'load_plugin_css'         => false,
+    'show_smart_import_tabs'  => false,
+    'show_file_upload_header' => false,
+    'show_intro_text'         => false,
+) );
 ```
 
 ## 🤝 Contributing
@@ -92,7 +103,37 @@ Contributions are welcome! Please refer to our [contributing guidelines](https:/
 
 ## 📝 Changelog
 
-See [readme.txt](readme.txt) for the full changelog.
+### 1.1.1 (November 19, 2025)
+
+* Added `show_intro_text` parameter to `socs_display_smart_import()` function for controlling intro text section visibility
+* Added `socs/show_intro_text` filter for programmatic control of intro text section visibility
+* Added `socs/intro_description_text` filter for customizing the intro description text
+* Enhanced customization options for theme developers
+
+### 1.1.0 (November 19, 2025)
+
+* Added `show_smart_import_tabs` parameter to `socs_display_smart_import()` function for controlling tab visibility
+* Added `show_file_upload_header` parameter to `socs_display_smart_import()` function for controlling header visibility
+* Added `socs/show_smart_import_tabs` filter for programmatic control of smart import tabs visibility
+* Added `socs/show_file_upload_header` filter for programmatic control of file upload header visibility
+* Enhanced template function with more customization options for theme developers
+* Improved flexibility for custom page integrations
+
+### 1.0.0 (November 17, 2025)
+
+* Initial release!
+* Full import functionality: content, widgets, customizer, Redux, WPForms
+* Smart Import interface with predefined demo imports and ZIP file upload
+* Full export functionality: content, widgets, customizer, plugin settings, Elementor data
+* Export to ZIP file for easy transfer between sites
+* Before/after import hooks for custom setup
+* WP-CLI commands for automated imports
+* Template function `socs_display_smart_import()` for theme integration
+* Full WordPress coding standards compliance
+* Comprehensive developer hooks and filters
+* Support for Elementor templates and kit settings export/import
+
+See [readme.txt](readme.txt) for the complete changelog.
 
 ## 📄 License
 

@@ -4,7 +4,7 @@
 Plugin Name: Smart One Click Setup
 Plugin URI: https://socs.buildbycj.com
 Description: Smart one-click demo import and export plugin. Export your content, widgets, customizer settings, plugin settings, and Elementor data. Import from ZIP files or predefined configurations with before/after import hooks.
-Version: 1.0.0
+Version: 1.1.1
 Requires at least: 5.5
 Requires PHP: 7.4
 Author: Chiranjit Hazarika
@@ -138,11 +138,14 @@ $socs_plugin = new SOCS_Plugin();
  * @param array $args {
  *     Optional. Array of arguments.
  *
- *     @type bool   $echo            Whether to echo the output or return it. Default true.
- *     @type string $wrapper_class   Additional CSS class for the wrapper. Default empty.
- *     @type bool   $show_header     Whether to show the plugin header. Default true.
- *     @type bool   $show_sidebar   Whether to show the theme card sidebar. Default true.
- *     @type bool   $load_plugin_css Whether to load plugin CSS. Set to false to use theme styles. Default true.
+ *     @type bool   $echo                    Whether to echo the output or return it. Default true.
+ *     @type string $wrapper_class           Additional CSS class for the wrapper. Default empty.
+ *     @type bool   $show_header             Whether to show the plugin header. Default true.
+ *     @type bool   $show_sidebar            Whether to show the theme card sidebar. Default true.
+ *     @type bool   $load_plugin_css         Whether to load plugin CSS. Set to false to use theme styles. Default true.
+ *     @type bool   $show_smart_import_tabs  Whether to show the smart import tabs. Default null (uses filter default).
+ *     @type bool   $show_file_upload_header Whether to show the file upload container header. Default true.
+ *     @type bool   $show_intro_text         Whether to show the intro text section. Default true.
  * }
  * @return string|void HTML output if $echo is false, void otherwise.
  *
@@ -165,6 +168,13 @@ $socs_plugin = new SOCS_Plugin();
  * // Use theme styles instead of plugin CSS
  * socs_display_smart_import( array(
  *     'load_plugin_css' => false,
+ * ) );
+ *
+ * // Hide tabs, header, and intro text for custom integration
+ * socs_display_smart_import( array(
+ *     'show_smart_import_tabs'  => false,
+ *     'show_file_upload_header' => false,
+ *     'show_intro_text'         => false,
  * ) );
  */
 if ( ! function_exists( 'socs_display_smart_import' ) ) {

@@ -39,22 +39,28 @@ Helpers::do_action( 'socs/plugin_page_header' );
 
 
 		<?php
-		// Start output buffer for displaying the plugin intro text.
-		ob_start();
-		?>
+		$socs_show_intro_text = Helpers::apply_filters( 'socs/show_intro_text', true );
+		if ( $socs_show_intro_text ) :
+			// Start output buffer for displaying the plugin intro text.
+			ob_start();
+			?>
 
-		<div class="socs__intro-text">
-			<p class="about-description">
-				<?php esc_html_e( 'Import demo data from a ZIP file exported using Smart Export, or use predefined import configurations set up by your theme developer.', 'smart-one-click-setup' ); ?>
-				<?php esc_html_e( 'This will import your content, widgets, customizer settings, and more.', 'smart-one-click-setup' ); ?>
-			</p>
-		</div>
+			<div class="socs__intro-text">
+				<p class="about-description">
+					<?php
+					$socs_default_description = esc_html__( 'Import demo data from a ZIP file exported using Smart Export, or use predefined import configurations set up by your theme developer.', 'smart-one-click-setup' ) . ' ' . esc_html__( 'This will import your content, widgets, customizer settings, and more.', 'smart-one-click-setup' );
+					$socs_intro_description = Helpers::apply_filters( 'socs/intro_description_text', $socs_default_description );
+					echo wp_kses_post( $socs_intro_description );
+					?>
+				</p>
+			</div>
 
-		<?php
-		$socs_plugin_intro_text = ob_get_clean();
+			<?php
+			$socs_plugin_intro_text = ob_get_clean();
 
-		// Display the plugin intro text (can be replaced with custom text through the filter below).
-		echo wp_kses_post( Helpers::apply_filters( 'socs/plugin_intro_text', $socs_plugin_intro_text ) );
+			// Display the plugin intro text (can be replaced with custom text through the filter below).
+			echo wp_kses_post( Helpers::apply_filters( 'socs/plugin_intro_text', $socs_plugin_intro_text ) );
+		endif;
 		?>
 
 		<?php $socs_theme = wp_get_theme(); ?>
@@ -63,16 +69,22 @@ Helpers::do_action( 'socs/plugin_page_header' );
 			<div class="socs__content-container-content--main">
 				<div class="socs-smart-import-content js-socs-smart-import-content">
 					<div class="socs__file-upload-container">
+						<?php
+						$socs_show_file_upload_header = Helpers::apply_filters( 'socs/show_file_upload_header', true );
+						if ( $socs_show_file_upload_header ) :
+						?>
 						<div class="socs__file-upload-container--header">
 							<h2><?php esc_html_e( 'Smart Import', 'smart-one-click-setup' ); ?></h2>
 						</div>
+						<?php endif; ?>
 
 						<?php
 						$socs_predefined_imports = Helpers::apply_filters( 'socs/predefined_import_files', array() );
 						$socs_has_predefined_imports = ! empty( $socs_predefined_imports );
+						$socs_show_tabs = Helpers::apply_filters( 'socs/show_smart_import_tabs', $socs_has_predefined_imports );
 						?>
 
-						<?php if ( $socs_has_predefined_imports ) : ?>
+						<?php if ( $socs_has_predefined_imports && $socs_show_tabs ) : ?>
 						<div class="socs-smart-import-tabs">
 							<button type="button" class="socs-smart-import-tab active button" data-tab="predefined">
 								<?php esc_html_e( 'Predefined Import', 'smart-one-click-setup' ); ?>
