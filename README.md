@@ -170,6 +170,7 @@ GNU General Public License for more details.
 
 **Chiranjit Hazarika**
 
+- GitHub: [@buildbycj](https://github.com/buildbycj)
 - Website: [https://buildbycj.com](https://buildbycj.com)
 - Plugin Site: [https://socs.buildbycj.com](https://socs.buildbycj.com)
 
