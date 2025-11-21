@@ -317,6 +317,7 @@ class Exporter {
 
 	/**
 	 * Export plugin settings.
+	 * Exports plugin settings in the format: { "plugin_slug": { "option_name": "value", ... } }
 	 *
 	 * @return string|WP_Error File path or WP_Error.
 	 */
@@ -325,7 +326,7 @@ class Exporter {
 
 		foreach ( $this->export_options['plugins'] as $plugin_slug ) {
 			$settings = $this->get_plugin_settings( $plugin_slug );
-			if ( ! empty( $settings ) ) {
+			if ( ! empty( $settings ) && is_array( $settings ) ) {
 				$plugin_settings[ $plugin_slug ] = $settings;
 			}
 		}
@@ -340,7 +341,22 @@ class Exporter {
 		$filename = 'plugin-settings.json';
 		$filepath = $this->export_dir . $filename;
 
-		$result = Helpers::write_to_file( wp_json_encode( $plugin_settings, JSON_PRETTY_PRINT ), $filepath );
+		// Encode with proper flags to handle Unicode and ensure proper formatting.
+		$json_flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+		$json_data = wp_json_encode( $plugin_settings, $json_flags );
+
+		// Check for JSON encoding errors.
+		if ( false === $json_data ) {
+			return new \WP_Error(
+				'plugin_settings_json_encode_failed',
+				sprintf( /* translators: %s: JSON error message */
+					esc_html__( 'Failed to encode plugin settings to JSON. Error: %s', 'smart-one-click-setup' ),
+					json_last_error_msg()
+				)
+			);
+		}
+
+		$result = Helpers::write_to_file( $json_data, $filepath );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -350,9 +366,11 @@ class Exporter {
 
 	/**
 	 * Get plugin settings.
+	 * Returns an array in the format: { "option_name": "option_value", ... }
+	 * This format matches what the importer expects - option_name as keys, option_value as values.
 	 *
 	 * @param string $plugin_slug Plugin slug.
-	 * @return array Plugin settings.
+	 * @return array Plugin settings array with option_name as keys and unserialized option_value as values.
 	 */
 	private function get_plugin_settings( $plugin_slug ) {
 		$settings = array();
@@ -361,7 +379,7 @@ class Exporter {
 		$settings = Helpers::apply_filters( 'socs/export_plugin_' . $plugin_slug . '_settings', $settings );
 
 		// Default: try to get all options with plugin prefix.
-		if ( empty( $settings ) ) {
+		if ( empty( $settings ) || ! is_array( $settings ) ) {
 			global $wpdb;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$options = $wpdb->get_results(
@@ -372,7 +390,13 @@ class Exporter {
 			);
 
 			foreach ( $options as $option ) {
-				$settings[ $option->option_name ] = maybe_unserialize( $option->option_value );
+				// Unserialize the option value if it's serialized.
+				// This ensures the exported JSON contains the actual data structure, not serialized strings.
+				$option_value = maybe_unserialize( $option->option_value );
+				
+				// Store as option_name => option_value for proper import format.
+				// The importer expects: foreach ( $settings as $option_name => $option_value )
+				$settings[ $option->option_name ] = $option_value;
 			}
 		}
 

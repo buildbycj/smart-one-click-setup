@@ -217,6 +217,8 @@ class PluginSettingsImporter {
 
 		// If filter returned true, settings were imported via the filter.
 		if ( $imported === true ) {
+			// Trigger action after plugin settings are imported via filter.
+			Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_settings_imported', $settings );
 			return true;
 		}
 
@@ -226,13 +228,48 @@ class PluginSettingsImporter {
 			// Sanitize option name.
 			$option_name = sanitize_key( $option_name );
 
+			// Skip if option name is empty after sanitization.
+			if ( empty( $option_name ) ) {
+				continue;
+			}
+
+			// Handle serialized data - ensure it's properly unserialized if needed.
+			// WordPress options are automatically serialized/unserialized, but we need to handle
+			// cases where the exported data might already be serialized strings.
+			// maybe_unserialize() safely handles both serialized and non-serialized data.
+			$option_value = maybe_unserialize( $option_value );
+
 			// Allow filtering of option value before import.
 			$option_value = Helpers::apply_filters( 'socs/import_plugin_option_value', $option_value, $option_name, $plugin_slug );
 			$option_value = Helpers::apply_filters( 'socs/import_plugin_' . $plugin_slug . '_option_value', $option_value, $option_name );
 
+			// Get old value for comparison and hooks.
+			$old_value = get_option( $option_name );
+
 			// Update the option.
-			update_option( $option_name, $option_value );
+			$updated = update_option( $option_name, $option_value );
+
+			// Trigger WordPress option update hooks if option was updated.
+			if ( $updated ) {
+				// Trigger generic option update hook.
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+				do_action( 'update_option', $option_name, $old_value, $option_value );
+
+				// Trigger specific option update hook (e.g., 'update_option_my_plugin_option').
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+				do_action( 'update_option_' . $option_name, $old_value, $option_value, $option_name );
+
+				// Trigger plugin-specific action.
+				Helpers::do_action( 'socs/after_plugin_option_imported', $option_name, $option_value, $old_value, $plugin_slug );
+				Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_option_imported', $option_name, $option_value, $old_value );
+			}
 		}
+
+		// Trigger action after all plugin settings are imported.
+		Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_settings_imported', $settings );
+
+		// Clear any relevant caches that might be affected by option updates.
+		wp_cache_flush();
 
 		return true;
 	}
