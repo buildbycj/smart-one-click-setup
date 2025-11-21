@@ -511,6 +511,36 @@ jQuery( function ( $ ) {
 		formData.append( 'action', 'socs_export_data' );
 		formData.append( 'security', socs.ajax_nonce );
 
+		// Collect custom plugin options.
+		var customPluginOptions = {};
+		$( '.socs-export-plugin-checkbox:checked' ).each( function() {
+			var pluginSlug = $( this ).data( 'plugin-slug' );
+			var customOptions = $( this ).data( 'custom-options' );
+			var isObjectFormat = $( this ).data( 'custom-options-is-object' ) || false;
+			
+			if ( customOptions !== null && customOptions !== undefined ) {
+				var hasOptions = false;
+				if ( Array.isArray( customOptions ) && customOptions.length > 0 ) {
+					hasOptions = true;
+				} else if ( typeof customOptions === 'object' && customOptions !== null && Object.keys( customOptions ).length > 0 ) {
+					hasOptions = true;
+				}
+				
+				if ( hasOptions ) {
+					// Store both the data and format flag.
+					customPluginOptions[ pluginSlug ] = {
+						options: customOptions,
+						is_object: isObjectFormat
+					};
+				}
+			}
+		});
+
+		// Add custom options to form data if any exist.
+		if ( Object.keys( customPluginOptions ).length > 0 ) {
+			formData.append( 'custom_plugin_options', JSON.stringify( customPluginOptions ) );
+		}
+
 		// AJAX call to export data.
 		$.ajax({
 			method: 'POST',
@@ -740,5 +770,138 @@ jQuery( function ( $ ) {
 			$importContent.show();
 			$button.prop( 'disabled', false );
 		});
+	});
+
+	/**
+	 * ---------------------------------------
+	 * -------- Custom Plugin Options --------
+	 * ---------------------------------------
+	 */
+
+	var $modal = $( '#socs-custom-options-modal' );
+	var $modalTextarea = $( '#socs-custom-options-textarea' );
+	var $modalError = $( '.socs-modal-error' );
+	var currentPluginSlug = null;
+	var currentPluginName = null;
+
+	// Open modal when custom options button is clicked.
+	$( document ).on( 'click', '.socs-export-plugin-custom-options-btn', function( e ) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		var $btn = $( this );
+		currentPluginSlug = $btn.data( 'plugin-slug' );
+		currentPluginName = $btn.data( 'plugin-name' );
+
+		// Get existing custom options if any.
+		var $checkbox = $( '.socs-export-plugin-checkbox[data-plugin-slug="' + currentPluginSlug + '"]' );
+		var existingOptions = $checkbox.data( 'custom-options' ) || null;
+		var existingOptionsJson = $checkbox.data( 'custom-options-json' ) || null;
+
+		// Set modal content.
+		$( '.socs-modal-plugin-name' ).text( currentPluginName );
+		// Use the raw JSON if available, otherwise stringify the options object.
+		if ( existingOptionsJson ) {
+			$modalTextarea.val( existingOptionsJson );
+		} else if ( existingOptions ) {
+			$modalTextarea.val( JSON.stringify( existingOptions, null, 2 ) );
+		} else {
+			$modalTextarea.val( '' );
+		}
+		$modalError.hide().text( '' );
+
+		// Show modal.
+		$modal.fadeIn( 200 );
+		$modalTextarea.focus();
+	});
+
+	// Close modal.
+	function closeModal() {
+		$modal.fadeOut( 200 );
+		$modalTextarea.val( '' );
+		$modalError.hide().text( '' );
+		currentPluginSlug = null;
+		currentPluginName = null;
+	}
+
+	$( document ).on( 'click', '.socs-modal-close, .socs-modal-cancel, .socs-modal-overlay', function( e ) {
+		if ( $( e.target ).hasClass( 'socs-modal-overlay' ) || $( e.target ).closest( '.socs-modal-close, .socs-modal-cancel' ).length ) {
+			closeModal();
+		}
+	});
+
+	// Save custom options.
+	$( document ).on( 'click', '.socs-modal-save', function() {
+		if ( ! currentPluginSlug ) {
+			return;
+		}
+
+		var textareaValue = $modalTextarea.val().trim();
+		var customOptions = null;
+		var isObjectFormat = false;
+
+		// Validate JSON if not empty.
+		if ( textareaValue ) {
+			try {
+				customOptions = JSON.parse( textareaValue );
+				
+				// Check if it's an array (option names only) or object (option names with values).
+				if ( Array.isArray( customOptions ) ) {
+					// Validate each option name is a string.
+					for ( var i = 0; i < customOptions.length; i++ ) {
+						if ( typeof customOptions[ i ] !== 'string' || customOptions[ i ].trim() === '' ) {
+							throw new Error( 'All option names must be non-empty strings.' );
+						}
+					}
+					isObjectFormat = false;
+				} else if ( typeof customOptions === 'object' && customOptions !== null ) {
+					// Validate object keys are strings.
+					for ( var key in customOptions ) {
+						if ( ! customOptions.hasOwnProperty( key ) ) {
+							continue;
+						}
+						if ( typeof key !== 'string' || key.trim() === '' ) {
+							throw new Error( 'All option names (keys) must be non-empty strings.' );
+						}
+					}
+					isObjectFormat = true;
+				} else {
+					throw new Error( 'Custom options must be either an array of option names or an object with option names and values.' );
+				}
+			} catch ( e ) {
+				$modalError.text( 'Invalid JSON format: ' + e.message ).show();
+				return;
+			}
+		}
+
+		// Save to checkbox data attribute.
+		var $checkbox = $( '.socs-export-plugin-checkbox[data-plugin-slug="' + currentPluginSlug + '"]' );
+		$checkbox.data( 'custom-options', customOptions );
+		$checkbox.data( 'custom-options-json', textareaValue ); // Store raw JSON for editing
+		$checkbox.data( 'custom-options-is-object', isObjectFormat ); // Flag to indicate format
+
+		// Update button appearance.
+		var $btn = $( '.socs-export-plugin-custom-options-btn[data-plugin-slug="' + currentPluginSlug + '"]' );
+		var hasOptions = false;
+		if ( Array.isArray( customOptions ) && customOptions.length > 0 ) {
+			hasOptions = true;
+		} else if ( typeof customOptions === 'object' && customOptions !== null && Object.keys( customOptions ).length > 0 ) {
+			hasOptions = true;
+		}
+		
+		if ( hasOptions ) {
+			$btn.addClass( 'has-custom-options' );
+		} else {
+			$btn.removeClass( 'has-custom-options' );
+		}
+
+		closeModal();
+	});
+
+	// Close modal on Escape key.
+	$( document ).on( 'keydown', function( e ) {
+		if ( e.key === 'Escape' && $modal.is( ':visible' ) ) {
+			closeModal();
+		}
 	});
 } );

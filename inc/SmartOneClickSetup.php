@@ -996,6 +996,55 @@ class SmartOneClickSetup {
 			'plugins'    => $has_plugins ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['export_plugins'] ) ) : array(),
 		);
 
+		// Get custom plugin options if provided.
+		$custom_plugin_options = array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! empty( $_POST['custom_plugin_options'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$custom_options_json = wp_unslash( $_POST['custom_plugin_options'] );
+			$custom_options_decoded = json_decode( $custom_options_json, true );
+			if ( is_array( $custom_options_decoded ) ) {
+				// Process each plugin's custom options.
+				foreach ( $custom_options_decoded as $plugin_slug => $options_data ) {
+					$plugin_slug = sanitize_text_field( $plugin_slug );
+					
+					// Check if it's the new format with 'options' and 'is_object' keys.
+					if ( is_array( $options_data ) && isset( $options_data['options'] ) ) {
+						$is_object_format = ! empty( $options_data['is_object'] );
+						$options = $options_data['options'];
+						
+						if ( $is_object_format && is_array( $options ) ) {
+							// Object format: option names with values.
+							$sanitized_options = array();
+							foreach ( $options as $option_name => $option_value ) {
+								$option_name = sanitize_text_field( $option_name );
+								// Keep the value as-is (it will be sanitized during export).
+								$sanitized_options[ $option_name ] = $option_value;
+							}
+							$custom_plugin_options[ $plugin_slug ] = array(
+								'options'    => $sanitized_options,
+								'is_object'   => true,
+							);
+						} elseif ( ! $is_object_format && is_array( $options ) ) {
+							// Array format: option names only.
+							$custom_plugin_options[ $plugin_slug ] = array(
+								'options'    => array_map( 'sanitize_text_field', $options ),
+								'is_object'  => false,
+							);
+						}
+					} elseif ( is_array( $options_data ) ) {
+						// Backward compatibility: assume array of option names.
+						$custom_plugin_options[ $plugin_slug ] = array(
+							'options'    => array_map( 'sanitize_text_field', $options_data ),
+							'is_object'  => false,
+						);
+					}
+				}
+			}
+		}
+
+		$export_options['custom_plugin_options'] = $custom_plugin_options;
+
 		// Allow filtering of export options.
 		$export_options = Helpers::apply_filters( 'socs/export_options', $export_options );
 

@@ -184,10 +184,15 @@ Helpers::do_action( 'socs/plugin_page_header' );
 											if ( ! empty( $socs_plugin_list ) ) :
 												foreach ( $socs_plugin_list as $socs_slug => $socs_name ) :
 													?>
-													<label class="socs-export-plugin-item">
-														<input type="checkbox" name="export_plugins[]" value="<?php echo esc_attr( $socs_slug ); ?>">
-														<span><?php echo esc_html( $socs_name ); ?></span>
-													</label>
+													<div class="socs-export-plugin-item-wrapper">
+														<label class="socs-export-plugin-item">
+															<input type="checkbox" name="export_plugins[]" value="<?php echo esc_attr( $socs_slug ); ?>" class="socs-export-plugin-checkbox" data-plugin-slug="<?php echo esc_attr( $socs_slug ); ?>">
+															<span><?php echo esc_html( $socs_name ); ?></span>
+														</label>
+														<button type="button" class="socs-export-plugin-custom-options-btn" data-plugin-slug="<?php echo esc_attr( $socs_slug ); ?>" data-plugin-name="<?php echo esc_attr( $socs_name ); ?>" title="<?php esc_attr_e( 'Add Custom Options', 'smart-one-click-setup' ); ?>">
+															<span class="dashicons dashicons-admin-generic"></span>
+														</button>
+													</div>
 													<?php
 												endforeach;
 											else :
@@ -254,6 +259,40 @@ Helpers::do_action( 'socs/plugin_page_header' );
 	</div>
 </div>
 
+<!-- Custom Plugin Options Modal -->
+<div id="socs-custom-options-modal" class="socs-modal" style="display: none;">
+	<div class="socs-modal-overlay"></div>
+	<div class="socs-modal-content">
+		<div class="socs-modal-header">
+			<h2 class="socs-modal-title"><?php esc_html_e( 'Add Custom Options', 'smart-one-click-setup' ); ?></h2>
+			<button type="button" class="socs-modal-close" aria-label="<?php esc_attr_e( 'Close', 'smart-one-click-setup' ); ?>">
+				<span class="dashicons dashicons-no-alt"></span>
+			</button>
+		</div>
+		<div class="socs-modal-body">
+			<p class="socs-modal-plugin-name"></p>
+			<p class="socs-modal-description">
+				<?php esc_html_e( 'Add custom option names as a JSON array, or provide a complete JSON object with option names and values. If you provide option names only, they will be fetched from the database. If you provide values, those will be used directly.', 'smart-one-click-setup' ); ?>
+			</p>
+			<div class="socs-modal-examples">
+				<p class="socs-modal-example">
+					<strong><?php esc_html_e( 'Option Names Only (Array):', 'smart-one-click-setup' ); ?></strong><br>
+					<code>["option_name_1", "option_name_2", "another_option"]</code>
+				</p>
+				<p class="socs-modal-example">
+					<strong><?php esc_html_e( 'Option Names with Values (Object):', 'smart-one-click-setup' ); ?></strong><br>
+					<code>{"option_name_1": "value1", "option_name_2": {"nested": "data"}}</code>
+				</p>
+			</div>
+			<textarea id="socs-custom-options-textarea" class="socs-custom-options-textarea" rows="10" placeholder='["option_name_1", "option_name_2"]&#10;&#10;OR&#10;&#10;{"option_name_1": "value1", "option_name_2": "value2"}'></textarea>
+			<div class="socs-modal-error" style="display: none;"></div>
+		</div>
+		<div class="socs-modal-footer">
+			<button type="button" class="button button-secondary socs-modal-cancel"><?php esc_html_e( 'Cancel', 'smart-one-click-setup' ); ?></button>
+			<button type="button" class="button button-primary socs-modal-save"><?php esc_html_e( 'Save Options', 'smart-one-click-setup' ); ?></button>
+		</div>
+	</div>
+</div>
 
 <?php
 /**

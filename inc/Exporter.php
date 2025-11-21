@@ -41,11 +41,12 @@ class Exporter {
 	 */
 	public function __construct( $export_options = array() ) {
 		$this->export_options = wp_parse_args( $export_options, array(
-			'content'     => true,
-			'widgets'     => true,
-			'customizer'  => true,
-			'plugins'     => array(),
-			'elementor'   => false,
+			'content'              => true,
+			'widgets'              => true,
+			'customizer'            => true,
+			'plugins'               => array(),
+			'elementor'             => false,
+			'custom_plugin_options' => array(),
 		) );
 
 		$upload_dir = wp_upload_dir();
@@ -378,18 +379,88 @@ class Exporter {
 		// Allow developers to hook into this to export their plugin settings.
 		$settings = Helpers::apply_filters( 'socs/export_plugin_' . $plugin_slug . '_settings', $settings );
 
+		// Get custom plugin options if provided.
+		$custom_options_data = null;
+		if ( ! empty( $this->export_options['custom_plugin_options'][ $plugin_slug ] ) ) {
+			$custom_options_data = $this->export_options['custom_plugin_options'][ $plugin_slug ];
+		}
+
+		// Check if custom options are in object format (with values) or array format (names only).
+		$custom_options_is_object = false;
+		$custom_options = array();
+		if ( is_array( $custom_options_data ) && isset( $custom_options_data['options'] ) ) {
+			$custom_options_is_object = ! empty( $custom_options_data['is_object'] );
+			$custom_options = $custom_options_data['options'];
+		} elseif ( is_array( $custom_options_data ) ) {
+			// Backward compatibility: assume array of option names.
+			$custom_options = $custom_options_data;
+		}
+
+		// If custom options are provided in object format (with values), use them directly.
+		if ( $custom_options_is_object && is_array( $custom_options ) && ! empty( $custom_options ) ) {
+			// Use the provided values directly.
+			foreach ( $custom_options as $option_name => $option_value ) {
+				// Sanitize option name.
+				$option_name = sanitize_key( $option_name );
+				if ( empty( $option_name ) ) {
+					continue;
+				}
+				// Store the value as-is (it's already provided by the user).
+				$settings[ $option_name ] = $option_value;
+			}
+		}
+
 		// Default: try to get all options with plugin prefix.
 		if ( empty( $settings ) || ! is_array( $settings ) ) {
 			global $wpdb;
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$options = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
-					$wpdb->esc_like( $plugin_slug ) . '%'
-				)
-			);
+			
+			// If custom options are provided as array (names only), fetch from database.
+			if ( ! $custom_options_is_object && ! empty( $custom_options ) && is_array( $custom_options ) ) {
+				// Fetch custom options from database.
+				$placeholders = implode( ',', array_fill( 0, count( $custom_options ), '%s' ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$options = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)",
+						$custom_options
+					)
+				);
+
+				// Also get options with plugin prefix (default behavior).
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$prefix_options = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
+						$wpdb->esc_like( $plugin_slug ) . '%'
+					)
+				);
+
+				// Merge both results, prioritizing custom options.
+				$all_options = array();
+				foreach ( $prefix_options as $option ) {
+					$all_options[ $option->option_name ] = $option;
+				}
+				foreach ( $options as $option ) {
+					$all_options[ $option->option_name ] = $option;
+				}
+				$options = array_values( $all_options );
+			} else {
+				// Default: get all options with plugin prefix.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$options = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
+						$wpdb->esc_like( $plugin_slug ) . '%'
+					)
+				);
+			}
 
 			foreach ( $options as $option ) {
+				// Skip if already set from object format custom options.
+				if ( isset( $settings[ $option->option_name ] ) ) {
+					continue;
+				}
+
 				// Unserialize the option value if it's serialized.
 				// This ensures the exported JSON contains the actual data structure, not serialized strings.
 				$option_value = maybe_unserialize( $option->option_value );
@@ -397,6 +468,24 @@ class Exporter {
 				// Store as option_name => option_value for proper import format.
 				// The importer expects: foreach ( $settings as $option_name => $option_value )
 				$settings[ $option->option_name ] = $option_value;
+			}
+		} elseif ( ! $custom_options_is_object && ! empty( $custom_options ) && is_array( $custom_options ) ) {
+			// If settings were provided via filter, still add custom options (array format - names only).
+			global $wpdb;
+			$placeholders = implode( ',', array_fill( 0, count( $custom_options ), '%s' ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$custom_option_results = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)",
+					$custom_options
+				)
+			);
+
+			foreach ( $custom_option_results as $option ) {
+				if ( ! isset( $settings[ $option->option_name ] ) ) {
+					$option_value = maybe_unserialize( $option->option_value );
+					$settings[ $option->option_name ] = $option_value;
+				}
 			}
 		}
 

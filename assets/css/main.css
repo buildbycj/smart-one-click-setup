@@ -1376,20 +1376,27 @@
   margin: 0;
 }
 
+.socs-export-plugin-item-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.socs-export-plugin-item-wrapper:last-child {
+  border-bottom: none;
+}
+
 .socs-export-plugin-item {
   display: flex;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  flex: 1;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
-.socs-export-plugin-item:last-child {
-  border-bottom: none;
-}
-
-.socs-export-plugin-item:hover {
+.socs-export-plugin-item-wrapper:hover {
   background-color: #f9f9f9;
   padding-left: 5px;
   padding-right: 5px;
@@ -1417,6 +1424,204 @@
 
 .socs-export-plugin-item input[type="checkbox"]:checked + span {
   font-weight: 500;
+}
+
+.socs-export-plugin-custom-options-btn {
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.socs-export-plugin-custom-options-btn:hover {
+  background: #f0f0f0;
+  border-color: #999;
+  color: #333;
+}
+
+.socs-export-plugin-custom-options-btn .dashicons {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
+.socs-export-plugin-custom-options-btn.has-custom-options {
+  background: #2271b1;
+  border-color: #2271b1;
+  color: #fff;
+}
+
+.socs-export-plugin-custom-options-btn.has-custom-options:hover {
+  background: #135e96;
+  border-color: #135e96;
+}
+
+/* Custom Options Modal */
+.socs-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100000;
+}
+
+.socs-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.socs-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.socs-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.socs-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.socs-modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.socs-modal-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.socs-modal-close .dashicons {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+}
+
+.socs-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.socs-modal-plugin-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 10px 0;
+  color: #2271b1;
+}
+
+.socs-modal-description {
+  margin: 0 0 15px 0;
+  color: #666;
+  line-height: 1.6;
+}
+
+.socs-modal-examples {
+  margin: 0 0 15px 0;
+}
+
+.socs-modal-example {
+  margin: 0 0 10px 0;
+  padding: 10px;
+  background: #f9f9f9;
+  border-left: 3px solid #2271b1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.socs-modal-example:last-child {
+  margin-bottom: 0;
+}
+
+.socs-modal-example code {
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.socs-custom-options-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.socs-custom-options-textarea:focus {
+  outline: none;
+  border-color: #2271b1;
+  box-shadow: 0 0 0 1px #2271b1;
+}
+
+.socs-modal-error {
+  margin-top: 10px;
+  padding: 10px;
+  background: #fce8e6;
+  border-left: 3px solid #d63638;
+  color: #d63638;
+  font-size: 13px;
+  border-radius: 3px;
+}
+
+.socs-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.socs-modal-footer .button {
+  margin: 0;
 }
 
 .socs-export-no-plugins {
