@@ -259,12 +259,10 @@ class Exporter {
 				$widget_settings = get_option( 'widget_' . $id_base );
 				$widget_number = isset( $widget['params'][0]['number'] ) ? $widget['params'][0]['number'] : '';
 
+				// Export format: widget_instance_id as key, widget settings as value.
+				// This matches the format expected by WidgetImporter.
 				if ( ! empty( $widget_number ) && isset( $widget_settings[ $widget_number ] ) ) {
-					$widget_data[ $sidebar_id ][] = array(
-						'id_base'   => $id_base,
-						'widget_id' => $widget_id,
-						'settings'  => $widget_settings[ $widget_number ],
-					);
+					$widget_data[ $sidebar_id ][ $widget_id ] = $widget_settings[ $widget_number ];
 				}
 			}
 		}
@@ -382,7 +380,9 @@ class Exporter {
 	}
 
 	/**
-	 * Export Elementor Style Kit data.
+	 * Export Elementor Site Kit data.
+	 * Exports only the Site Kit settings (colors, typography, global styles).
+	 * Page and template data are not exported as they are handled by the XML content export.
 	 *
 	 * @return string|WP_Error File path or WP_Error.
 	 */
@@ -393,46 +393,13 @@ class Exporter {
 
 		$elementor_data = array();
 
-		// Export Elementor Style Kit kit settings.
+		// Export Elementor Site Kit settings only.
 		$kit_id = \Elementor\Plugin::$instance->kits_manager->get_active_id();
 		if ( $kit_id ) {
 			$kit_settings = get_post_meta( $kit_id, '_elementor_page_settings', true );
 			if ( $kit_settings ) {
 				$elementor_data['kit_settings'] = $kit_settings;
 			}
-		}
-
-		// Export Elementor Style Kit templates and page data.
-		// This meta_query is necessary to find all posts with Elementor data for export.
-		$posts = get_posts( array(
-			'post_type'      => array( 'page', 'elementor_library' ),
-			'posts_per_page' => -1,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Necessary to find all posts with Elementor data.
-			'meta_query'     => array(
-				array(
-					'key'     => '_elementor_data',
-					'compare' => 'EXISTS',
-				),
-			),
-		) );
-
-		$elementor_posts = array();
-		foreach ( $posts as $post ) {
-			$elementor_data_post = get_post_meta( $post->ID, '_elementor_data', true );
-			if ( $elementor_data_post ) {
-				$elementor_posts[ $post->ID ] = array(
-					'post_id'   => $post->ID,
-					'post_type' => $post->post_type,
-					'post_title' => $post->post_title,
-					'elementor_data' => $elementor_data_post,
-					'elementor_edit_mode' => get_post_meta( $post->ID, '_elementor_edit_mode', true ),
-					'elementor_css' => get_post_meta( $post->ID, '_elementor_css', true ),
-				);
-			}
-		}
-
-		if ( ! empty( $elementor_posts ) ) {
-			$elementor_data['posts'] = $elementor_posts;
 		}
 
 		// Allow filtering of Elementor data.

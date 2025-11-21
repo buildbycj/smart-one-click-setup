@@ -1,6 +1,8 @@
 <?php
 /**
  * Class for the Elementor importer used in the Smart One Click Setup plugin.
+ * Imports Elementor Site Kit settings (colors, typography, global styles).
+ * Page and template data import is supported for backward compatibility with older exports.
  *
  * @package socs
  */
@@ -9,7 +11,9 @@ namespace SOCS;
 
 class ElementorImporter {
 	/**
-	 * Import Elementor data from JSON file.
+	 * Import Elementor Site Kit from JSON file.
+	 * Imports Site Kit settings and makes it the active kit.
+	 * Optionally imports page/template data if present (for backward compatibility).
 	 *
 	 * @param string $elementor_import_file_path Path to the Elementor import file.
 	 */
@@ -102,7 +106,9 @@ class ElementorImporter {
 	}
 
 	/**
-	 * Import Elementor data.
+	 * Import Elementor Site Kit data.
+	 * Primary focus: Import Site Kit settings and make it active.
+	 * Secondary: Import page/template data if present (backward compatibility with older exports).
 	 *
 	 * @param string $data_file Path to JSON file with Elementor export data.
 	 * @return array|WP_Error Results array or WP_Error.
@@ -129,13 +135,14 @@ class ElementorImporter {
 			'posts' => array(),
 		);
 
-		// Import kit settings.
+		// Import Site Kit settings (primary purpose).
 		if ( ! empty( $data['kit_settings'] ) ) {
 			$kit_result = self::import_kit_settings( $data['kit_settings'] );
 			$results['kit'] = $kit_result;
 		}
 
-		// Import Elementor posts/templates data.
+		// Import Elementor posts/templates data (backward compatibility - only if present in export).
+		// Note: New exports only include Site Kit settings, not page data.
 		if ( ! empty( $data['posts'] ) && is_array( $data['posts'] ) ) {
 			$posts_result = self::import_elementor_posts( $data['posts'] );
 			$results['posts'] = $posts_result;
@@ -157,47 +164,54 @@ class ElementorImporter {
 
 		$elementor = \Elementor\Plugin::$instance;
 
-		// Get existing active kit, or create a new one.
-		$kit_id = $elementor->kits_manager->get_active_id();
+		// Always create a new kit for the imported settings to ensure it's a fresh import.
+		// Create a new kit post.
+		$kit_post = array(
+			'post_title'  => esc_html__( 'Imported Site Kit', 'smart-one-click-setup' ),
+			'post_status' => 'publish',
+			'post_type'   => 'elementor_library',
+			'meta_input'  => array(
+				'_elementor_template_type' => 'kit',
+				'_elementor_edit_mode'     => 'builder',
+			),
+		);
 
-		// If no active kit exists, create a new one.
-		if ( ! $kit_id ) {
-			// Create a new kit post.
-			$kit_post = array(
-				'post_title'  => esc_html__( 'Imported Site Kit', 'smart-one-click-setup' ),
-				'post_status' => 'publish',
-				'post_type'   => 'elementor_library',
-				'meta_input'  => array(
-					'_elementor_template_type' => 'kit',
-					'_elementor_edit_mode'     => 'builder',
-				),
+		$kit_id = wp_insert_post( $kit_post );
+
+		if ( is_wp_error( $kit_id ) ) {
+			return new \WP_Error(
+				'kit_creation_failed',
+				sprintf( /* translators: %s: Error message */
+					esc_html__( 'Failed to create Elementor kit: %s', 'smart-one-click-setup' ),
+					$kit_id->get_error_message()
+				)
 			);
-
-			$kit_id = wp_insert_post( $kit_post );
-
-			if ( is_wp_error( $kit_id ) ) {
-				return new \WP_Error(
-					'kit_creation_failed',
-					sprintf( /* translators: %s: Error message */
-						esc_html__( 'Failed to create Elementor kit: %s', 'smart-one-click-setup' ),
-						$kit_id->get_error_message()
-					)
-				);
-			}
-
-			// Set the kit type taxonomy.
-			wp_set_object_terms( $kit_id, 'kit', 'elementor_library_type' );
 		}
+
+		// Set the kit type taxonomy.
+		wp_set_object_terms( $kit_id, 'kit', 'elementor_library_type' );
 
 		// Update kit settings.
 		update_post_meta( $kit_id, '_elementor_page_settings', $kit_settings );
 
-		// Make this kit the active kit.
+		// Make this kit the active kit using Elementor's option.
 		// The active kit option name in Elementor.
 		update_option( 'elementor_active_kit', $kit_id );
 
-		// Clear Elementor cache.
-		\Elementor\Plugin::$instance->files_manager->clear_cache();
+		// Also try to use Elementor's kits_manager method if available (for Elementor 3.0+).
+		if ( method_exists( $elementor->kits_manager, 'set_active_kit' ) ) {
+			$elementor->kits_manager->set_active_kit( $kit_id );
+		}
+
+		// Clear Elementor cache to ensure changes take effect.
+		if ( method_exists( $elementor->files_manager, 'clear_cache' ) ) {
+			$elementor->files_manager->clear_cache();
+		}
+
+		// Force Elementor to regenerate CSS for the kit.
+		if ( method_exists( $elementor->posts_css_manager, 'clear_cache' ) ) {
+			$elementor->posts_css_manager->clear_cache();
+		}
 
 		return array(
 			'success' => true,
@@ -208,6 +222,8 @@ class ElementorImporter {
 
 	/**
 	 * Import Elementor posts/templates data.
+	 * This method is kept for backward compatibility with older exports that included page data.
+	 * New exports only include Site Kit settings, so this method may not be called.
 	 *
 	 * @param array $elementor_posts Array of Elementor post data.
 	 * @return array Results array.
@@ -341,30 +357,30 @@ class ElementorImporter {
 			return;
 		}
 
-		// Kit import results.
+		// Site Kit import results (primary import).
 		if ( isset( $results['kit'] ) ) {
 			if ( is_array( $results['kit'] ) && isset( $results['kit']['success'] ) && $results['kit']['success'] ) {
 				echo esc_html( $results['kit']['message'] ) . PHP_EOL;
 				if ( isset( $results['kit']['kit_id'] ) ) {
 					/* translators: %d: Kit ID */
-					echo sprintf( esc_html__( 'Kit ID: %d', 'smart-one-click-setup' ), $results['kit']['kit_id'] ) . PHP_EOL;
+					echo sprintf( esc_html__( 'Site Kit ID: %d', 'smart-one-click-setup' ), $results['kit']['kit_id'] ) . PHP_EOL;
 				}
 			} elseif ( is_wp_error( $results['kit'] ) ) {
-				echo esc_html__( 'Kit import failed: ', 'smart-one-click-setup' ) . esc_html( $results['kit']->get_error_message() ) . PHP_EOL;
+				echo esc_html__( 'Site Kit import failed: ', 'smart-one-click-setup' ) . esc_html( $results['kit']->get_error_message() ) . PHP_EOL;
 			}
 			echo PHP_EOL;
 		}
 
-		// Posts import results.
-		if ( isset( $results['posts'] ) && is_array( $results['posts'] ) ) {
+		// Posts import results (backward compatibility - only shown if page data was present in export).
+		if ( isset( $results['posts'] ) && is_array( $results['posts'] ) && ! empty( $results['posts'] ) ) {
 			$posts_results = $results['posts'];
 			if ( isset( $posts_results['success'] ) || isset( $posts_results['failed'] ) || isset( $posts_results['skipped'] ) ) {
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Posts imported: %d', 'smart-one-click-setup' ), $posts_results['success'] ) . PHP_EOL;
+				echo sprintf( esc_html__( 'Page/Template data imported: %d', 'smart-one-click-setup' ), $posts_results['success'] ) . PHP_EOL;
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Posts failed: %d', 'smart-one-click-setup' ), $posts_results['failed'] ) . PHP_EOL;
+				echo sprintf( esc_html__( 'Page/Template data failed: %d', 'smart-one-click-setup' ), $posts_results['failed'] ) . PHP_EOL;
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Posts skipped: %d', 'smart-one-click-setup' ), $posts_results['skipped'] ) . PHP_EOL;
+				echo sprintf( esc_html__( 'Page/Template data skipped: %d', 'smart-one-click-setup' ), $posts_results['skipped'] ) . PHP_EOL;
 				echo PHP_EOL;
 
 				// Show details if available.

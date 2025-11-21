@@ -22,6 +22,7 @@ class ImportActions {
 		add_action( 'socs/after_content_import_execution', array( $this, 'redux_import' ), 30, 3 );
 		add_action( 'socs/after_content_import_execution', array( $this, 'wpforms_import' ), 40, 3 );
 		add_action( 'socs/after_content_import_execution', array( $this, 'elementor_import' ), 50, 3 );
+		add_action( 'socs/after_content_import_execution', array( $this, 'plugin_settings_import' ), 60, 3 );
 
 		// Customizer import.
 		add_action( 'socs/customizer_import_execution', array( $this, 'customizer_import' ), 10, 1 );
@@ -119,6 +120,19 @@ class ImportActions {
 	public function elementor_import( $selected_import_files, $import_files, $selected_index ) {
 		if ( ! empty( $selected_import_files['elementor'] ) ) {
 			ElementorImporter::import( $selected_import_files['elementor'] );
+		}
+	}
+
+	/**
+	 * Execute the plugin settings import.
+	 *
+	 * @param array $selected_import_files Actual selected import files (content, widgets, customizer, plugins).
+	 * @param array $import_files          The filtered import files defined in `socs/import_files` filter.
+	 * @param int   $selected_index        Selected index of import.
+	 */
+	public function plugin_settings_import( $selected_import_files, $import_files, $selected_index ) {
+		if ( ! empty( $selected_import_files['plugins'] ) ) {
+			PluginSettingsImporter::import( $selected_import_files['plugins'] );
 		}
 	}
 
