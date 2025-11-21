@@ -42,3 +42,4 @@ yarn-error.log*
 # WordPress specific
 wp-config.php
 .htaccess
+*.zip

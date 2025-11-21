@@ -4,7 +4,7 @@ Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv3 or later
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
@@ -641,6 +641,21 @@ Please visit this [docs page](https://github.com/buildbycj/smart-one-click-setup
 4. How the Recommended & Required theme plugins step looks like, just before the import step.
 
 == Changelog ==
+
+= 1.2.1 =
+
+*Release Date - 21 Nov 2025*
+
+* **IMPROVED: Elementor Import Conflict Resolution**
+  * Enhanced Elementor import to prevent conflicts with XML content import
+  * Elementor import now properly runs after XML import (priority 50) to ensure complete data
+  * Added Elementor hook triggers for proper integration (`elementor/document/before_save`, `elementor/document/after_save`, `elementor/kit/update_settings`)
+  * Improved cache clearing for both posts and kits
+  * Added proper validation checks for Elementor availability and kits_manager
+  * Added developer filters: `socs/enable_elementor_import`, `socs/elementor_import_post_data`, `socs/elementor_import_kit_settings`
+  * Better error handling and validation throughout Elementor import process
+* Fixed potential conflicts between XML import and Elementor data import
+* Enhanced compatibility with Elementor's internal processes
 
 = 1.2.0 =
 

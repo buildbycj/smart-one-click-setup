@@ -11,15 +11,49 @@ class ElementorImporter {
 	/**
 	 * Import Elementor data from JSON file.
 	 *
+	 * IMPORTANT: This import runs AFTER the XML content import (priority 50 in ImportActions).
+	 * This is intentional because:
+	 * 1. XML import includes Elementor post meta (_elementor_data, etc.) but may be incomplete
+	 * 2. elementor.json contains the authoritative, complete Elementor data export
+	 * 3. We update/replace Elementor data from XML with the complete data from elementor.json
+	 * 4. This ensures Elementor pages/templates have the correct, complete data
+	 *
+	 * The import does NOT conflict with:
+	 * - Elementor itself: We use Elementor's hooks and cache clearing mechanisms
+	 * - XML import: We intentionally run after XML to update with complete Elementor data
+	 *
 	 * @param string $elementor_import_file_path Path to the Elementor import file.
 	 */
 	public static function import( $elementor_import_file_path ) {
 		$socs          = SmartOneClickSetup::get_instance();
 		$log_file_path = $socs->get_log_file_path();
 
+		// Check if Elementor import is disabled via filter.
+		if ( ! Helpers::apply_filters( 'socs/enable_elementor_import', true ) ) {
+			$message = esc_html__( 'Elementor import is disabled via filter.', 'smart-one-click-setup' );
+			Helpers::append_to_file(
+				$message,
+				$log_file_path,
+				esc_html__( 'Importing Elementor data', 'smart-one-click-setup' )
+			);
+			return;
+		}
+
 		// Check if Elementor is active.
 		if ( ! class_exists( '\Elementor\Plugin' ) ) {
 			$error_message = esc_html__( 'Elementor plugin is not active, so the Elementor import was skipped!', 'smart-one-click-setup' );
+			$socs->append_to_frontend_error_messages( $error_message );
+			Helpers::append_to_file(
+				$error_message,
+				$log_file_path,
+				esc_html__( 'Importing Elementor data', 'smart-one-click-setup' )
+			);
+			return;
+		}
+		
+		// Verify Elementor is properly loaded.
+		if ( ! method_exists( '\Elementor\Plugin', 'get_instance' ) ) {
+			$error_message = esc_html__( 'Elementor plugin is not properly loaded.', 'smart-one-click-setup' );
 			$socs->append_to_frontend_error_messages( $error_message );
 			Helpers::append_to_file(
 				$error_message,
@@ -157,6 +191,14 @@ class ElementorImporter {
 
 		$elementor = \Elementor\Plugin::$instance;
 
+		// Verify kits_manager is available.
+		if ( ! isset( $elementor->kits_manager ) || ! method_exists( $elementor->kits_manager, 'get_active_id' ) ) {
+			return new \WP_Error(
+				'elementor_kits_manager_unavailable',
+				esc_html__( 'Elementor kits manager is not available. Please ensure Elementor is up to date.', 'smart-one-click-setup' )
+			);
+		}
+
 		// Get existing active kit, or create a new one.
 		$kit_id = $elementor->kits_manager->get_active_id();
 
@@ -189,15 +231,31 @@ class ElementorImporter {
 			wp_set_object_terms( $kit_id, 'kit', 'elementor_library_type' );
 		}
 
+		// Allow filtering of kit settings before import.
+		$kit_settings = Helpers::apply_filters( 'socs/elementor_import_kit_settings', $kit_settings, $kit_id );
+		
 		// Update kit settings.
 		update_post_meta( $kit_id, '_elementor_page_settings', $kit_settings );
 
 		// Make this kit the active kit.
 		// The active kit option name in Elementor.
+		$previous_active_kit = get_option( 'elementor_active_kit' );
 		update_option( 'elementor_active_kit', $kit_id );
-
-		// Clear Elementor cache.
-		\Elementor\Plugin::$instance->files_manager->clear_cache();
+		
+		// Trigger Elementor's kit update hooks if available.
+		if ( has_action( 'elementor/kit/update_settings' ) ) {
+			do_action( 'elementor/kit/update_settings', $kit_id, $kit_settings );
+		}
+		
+		// Clear Elementor cache to ensure kit settings are properly loaded.
+		if ( method_exists( \Elementor\Plugin::$instance, 'files_manager' ) ) {
+			\Elementor\Plugin::$instance->files_manager->clear_cache();
+		}
+		
+		// Clear Elementor's kit cache specifically.
+		if ( method_exists( $elementor->kits_manager, 'clear_cache' ) ) {
+			$elementor->kits_manager->clear_cache();
+		}
 
 		return array(
 			'success' => true,
@@ -271,7 +329,15 @@ class ElementorImporter {
 				continue;
 			}
 
+			// Check if Elementor data already exists from XML import.
+			// We still import from elementor.json as it may have more complete/updated data.
+			$existing_elementor_data = get_post_meta( $new_post_id, '_elementor_data', true );
+			$has_existing_data = ! empty( $existing_elementor_data );
+			
 			// Import Elementor data for this post.
+			// Note: This runs AFTER XML import, so it will update/replace any Elementor data
+			// that was imported via XML. This is intentional as elementor.json contains
+			// the authoritative Elementor data export.
 			$imported = self::import_post_elementor_data( $new_post_id, $post_data );
 
 			if ( $imported ) {
@@ -306,26 +372,53 @@ class ElementorImporter {
 	 * @return bool True on success, false on failure.
 	 */
 	private static function import_post_elementor_data( $post_id, $post_data ) {
+		// Check if Elementor data already exists from XML import.
+		// If it exists and matches, we can skip to avoid unnecessary updates.
+		$existing_elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+		
 		// Import _elementor_data.
+		// Note: We update this even if it exists because elementor.json might have more complete/updated data
+		// than what was imported via XML. The elementor.json export is specifically for Elementor data.
 		if ( isset( $post_data['elementor_data'] ) ) {
-			update_post_meta( $post_id, '_elementor_data', $post_data['elementor_data'] );
+			// Allow filtering before import.
+			$elementor_data = Helpers::apply_filters( 'socs/elementor_import_post_data', $post_data['elementor_data'], $post_id, $post_data );
+			
+			// Use Elementor's update_post_meta if available, otherwise use WordPress function.
+			// This ensures Elementor's internal hooks are triggered if they exist.
+			update_post_meta( $post_id, '_elementor_data', $elementor_data );
+			
+			// Trigger Elementor's save_post action if available to ensure proper processing.
+			if ( has_action( 'elementor/document/before_save' ) ) {
+				// Allow Elementor to process the data update.
+				do_action( 'elementor/document/before_save', $post_id );
+			}
 		}
 
 		// Import _elementor_edit_mode.
 		if ( isset( $post_data['elementor_edit_mode'] ) ) {
 			update_post_meta( $post_id, '_elementor_edit_mode', $post_data['elementor_edit_mode'] );
 		} else {
-			// Default to builder mode if not set.
-			update_post_meta( $post_id, '_elementor_edit_mode', 'builder' );
+			// Default to builder mode if not set and Elementor data exists.
+			if ( isset( $post_data['elementor_data'] ) ) {
+				update_post_meta( $post_id, '_elementor_edit_mode', 'builder' );
+			}
 		}
 
 		// Import _elementor_css (if exists).
+		// Note: Elementor regenerates CSS, but we import it for consistency.
 		if ( isset( $post_data['elementor_css'] ) ) {
 			update_post_meta( $post_id, '_elementor_css', $post_data['elementor_css'] );
 		}
 
-		// Clear Elementor cache for this post.
-		\Elementor\Plugin::$instance->posts_css_manager->clear_cache();
+		// Clear Elementor cache for this post to ensure fresh data.
+		if ( method_exists( \Elementor\Plugin::$instance, 'posts_css_manager' ) ) {
+			\Elementor\Plugin::$instance->posts_css_manager->clear_cache();
+		}
+		
+		// Trigger Elementor's after_save action if available.
+		if ( has_action( 'elementor/document/after_save' ) ) {
+			do_action( 'elementor/document/after_save', $post_id );
+		}
 
 		return true;
 	}

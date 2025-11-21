@@ -4,7 +4,7 @@
 Plugin Name: Smart One Click Setup
 Plugin URI: https://socs.buildbycj.com
 Description: Smart one-click demo import and export plugin. Export your content, widgets, customizer settings, plugin settings, and Elementor data. Import from ZIP files or predefined configurations with before/after import hooks. Full Elementor Site Kit import support - automatically imports and activates Elementor kits.
-Version: 1.2.0
+Version: 1.2.1
 Requires at least: 5.5
 Requires PHP: 7.4
 Author: Chiranjit Hazarika
