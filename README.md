@@ -28,6 +28,11 @@ Perfect for theme authors who want to provide their users with a one-click demo 
 - **✨ One-Click ZIP Import/Export** - Export everything to a single ZIP file and import from a single ZIP file
 - **🎨 Elementor Compatible** - Full Elementor support for templates, page data, and kit settings (export and import)
 - **🔌 Any Plugin Settings Import/Export** - Export settings from ANY plugin, not just predefined ones
+  - **Custom Plugin Options** - Add custom option names or values for any plugin (JSON Array or Object format)
+  - **Single-Option Plugin Detection** - Automatically handles plugins with nested settings structures
+  - **Supported JSON Formats:**
+    - **JSON Array**: `["option_name_1", "option_name_2"]` - Fetches values from database
+    - **JSON Object**: `{"option_name_1": "value1", "option_name_2": "value2"}` - Uses provided values directly
 - **🌐 Remote File Support** - Import from remote URLs with support for presigned URLs (Amazon S3, etc.)
 - **🚀 Smart Import Interface** - Predefined demo imports and manual ZIP upload with tabbed interface
 - **⚙️ Developer-Friendly** - Comprehensive hooks and filters, WP-CLI commands, and template functions
@@ -59,6 +64,92 @@ Perfect for theme authors who want to provide their users with a one-click demo 
 ## 📖 Documentation
 
 For detailed documentation, please visit: [https://socs.buildbycj.com](https://socs.buildbycj.com)
+
+## 🔧 Custom Plugin Options
+
+Starting from version 1.2.2, you can add custom plugin options for any selected plugin during export. This feature supports two JSON formats:
+
+### JSON Array Format
+
+Use this format when you want to fetch current values from the database:
+
+```json
+["option_name_1", "option_name_2", "another_option"]
+```
+
+**Characteristics:**
+- All items must be non-empty strings (option names)
+- Values are automatically fetched from the database during export
+- Perfect when you want current database values
+- Example: `["woocommerce_currency", "woocommerce_weight_unit"]`
+
+### JSON Object Format
+
+Use this format when you want to provide specific custom values:
+
+```json
+{
+  "option_name_1": "value1",
+  "option_name_2": {
+    "nested": "data",
+    "array": [1, 2, 3]
+  },
+  "option_name_3": 123,
+  "option_name_4": true,
+  "option_name_5": null
+}
+```
+
+**Characteristics:**
+- Keys must be non-empty strings (option names)
+- Values can be any valid JSON type:
+  - Strings: `"text"`
+  - Numbers: `123`, `45.67`
+  - Booleans: `true`, `false`
+  - Arrays: `["item1", "item2"]`
+  - Objects: `{"key": "value"}`
+  - Null: `null`
+- Values are used directly during export (not fetched from database)
+- Perfect when you want to set specific custom values
+- Example: `{"my_custom_setting": "custom_value", "another_setting": {"key": "value"}}`
+
+### How to Use
+
+1. Go to **Appearance → Smart Export**
+2. Select the plugins you want to export
+3. Click the settings button (⚙️) next to any plugin
+4. Enter your custom options in the modal:
+   - Use JSON Array format for option names only
+   - Use JSON Object format for option names with values
+5. The plugin will validate your JSON and save it
+6. Export as usual - custom options will be included automatically
+
+### Plugin Settings Export File Format
+
+The exported `plugin-settings.json` file uses a nested JSON Object structure:
+
+```json
+{
+  "plugin_slug_1": {
+    "option_name_1": "value1",
+    "option_name_2": "value2"
+  },
+  "plugin_slug_2": {
+    "section_1": {
+      "name": "Section Name",
+      "fields": {
+        "field_1": "value1"
+      }
+    }
+  }
+}
+```
+
+This format supports:
+- Simple key-value pairs
+- Nested structures for single-option plugins
+- Any valid JSON data types
+- Unicode characters
 
 ## 🛠️ For Theme Authors
 
@@ -112,11 +203,127 @@ socs_display_smart_import( array(
 ) );
 ```
 
+## 🔧 Custom Plugin Options
+
+Starting from version 1.2.2, you can add custom plugin options for any selected plugin during export. This feature supports two JSON formats:
+
+### JSON Array Format
+
+Use this format when you want to fetch current values from the database:
+
+```json
+["option_name_1", "option_name_2", "another_option"]
+```
+
+**Characteristics:**
+- All items must be non-empty strings (option names)
+- Values are automatically fetched from the database during export
+- Perfect when you want current database values
+- Example: `["woocommerce_currency", "woocommerce_weight_unit"]`
+
+### JSON Object Format
+
+Use this format when you want to provide specific custom values:
+
+```json
+{
+  "option_name_1": "value1",
+  "option_name_2": {
+    "nested": "data",
+    "array": [1, 2, 3]
+  },
+  "option_name_3": 123,
+  "option_name_4": true,
+  "option_name_5": null
+}
+```
+
+**Characteristics:**
+- Keys must be non-empty strings (option names)
+- Values can be any valid JSON type:
+  - Strings: `"text"`
+  - Numbers: `123`, `45.67`
+  - Booleans: `true`, `false`
+  - Arrays: `["item1", "item2"]`
+  - Objects: `{"key": "value"}`
+  - Null: `null`
+- Values are used directly during export (not fetched from database)
+- Perfect when you want to set specific custom values
+- Example: `{"my_custom_setting": "custom_value", "another_setting": {"key": "value"}}`
+
+### How to Use
+
+1. Go to **Appearance → Smart Export**
+2. Select the plugins you want to export
+3. Click the settings button (⚙️) next to any plugin
+4. Enter your custom options in the modal:
+   - Use JSON Array format for option names only
+   - Use JSON Object format for option names with values
+5. The plugin will validate your JSON and save it
+6. Export as usual - custom options will be included automatically
+
+### Plugin Settings Export File Format
+
+The exported `plugin-settings.json` file uses a nested JSON Object structure:
+
+```json
+{
+  "plugin_slug_1": {
+    "option_name_1": "value1",
+    "option_name_2": "value2"
+  },
+  "plugin_slug_2": {
+    "section_1": {
+      "name": "Section Name",
+      "fields": {
+        "field_1": "value1"
+      }
+    }
+  }
+}
+```
+
+This format supports:
+- Simple key-value pairs
+- Nested structures for single-option plugins
+- Any valid JSON data types
+- Unicode characters
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please refer to our [contributing guidelines](https://github.com/buildbycj/smart-one-click-setup/blob/main/CONTRIBUTING.md) for more information.
 
 ## 📝 Changelog
+
+### 1.2.2 (November 20, 2025)
+
+* **NEW: Custom Plugin Options Feature**
+  * Add custom plugin options for any selected plugin during export
+  * Support for JSON Array format: `["option_name_1", "option_name_2"]` - fetches values from database
+  * Support for JSON Object format: `{"option_name_1": "value1", "option_name_2": "value2"}` - uses provided values directly
+  * Beautiful modal interface with JSON validation
+  * Visual indicators for plugins with custom options
+  * Seamless integration with existing plugin settings export
+* **NEW: Single-Option Plugin Detection**
+  * Automatic detection of plugins that store all settings in a single option (nested structure)
+  * Supports plugins like keystone-framework with sections/fields structure
+  * Smart option name detection (checks database for existing options)
+  * Generic detection works for any plugin with nested structures
+* **Enhanced Plugin Settings Import/Export**
+  * Improved JSON encoding with proper Unicode and formatting support
+  * Better error handling for JSON encoding failures
+  * Enhanced logging to show imported option counts and names
+  * Tracks all imported options even if values didn't change
+  * Proper WordPress hooks triggering for all imported options
+  * Improved unserialize handling for custom JSON values
+* **Widget Export Format Fix**
+  * Fixed widget export format to match importer expectations
+  * Widgets now export with `widget_id` as key for proper import
+* **UI Improvements**
+  * Added settings button next to each plugin in export list
+  * Modal interface for adding custom plugin options
+  * Better examples and descriptions in the UI
+  * Improved error messages and validation
 
 ### 1.2.0 (November 20, 2025)
 

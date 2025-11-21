@@ -4,7 +4,7 @@ Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.2
 License: GPLv3 or later
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
@@ -30,6 +30,8 @@ The best feature of this plugin is, that theme authors can define import files i
 * Custom plugin support - developers can add their own export hooks
 * Selective export - choose which plugins to include in your export
 * Automatic detection of active plugins with customizable export list
+* **NEW: Custom Plugin Options** - Add custom option names or values for any plugin (JSON Array or Object format)
+* **NEW: Single-Option Plugin Detection** - Automatically handles plugins with nested settings structures
 
 **🌐 Remote File Support**
 * Import from remote URLs - no need to download files manually
@@ -93,6 +95,46 @@ Please refer to our official [GitHub repository](https://github.com/buildbycj/sm
 = I have activated the plugin. Where is the "Import Demo Data" page? =
 
 You will find the import page in *wp-admin -> Appearance -> Import Demo Data*.
+
+= What JSON formats are supported for custom plugin options? =
+
+Starting from version 1.2.2, you can add custom plugin options using two JSON formats:
+
+**JSON Array Format** - Use when you want to fetch current values from the database:
+```
+["option_name_1", "option_name_2", "another_option"]
+```
+* All items must be non-empty strings (option names)
+* Values are automatically fetched from the database during export
+* Perfect when you want current database values
+* Example: `["woocommerce_currency", "woocommerce_weight_unit"]`
+
+**JSON Object Format** - Use when you want to provide specific custom values:
+```
+{
+  "option_name_1": "value1",
+  "option_name_2": {
+    "nested": "data",
+    "array": [1, 2, 3]
+  },
+  "option_name_3": 123,
+  "option_name_4": true,
+  "option_name_5": null
+}
+```
+* Keys must be non-empty strings (option names)
+* Values can be any valid JSON type: strings, numbers, booleans, arrays, objects, null
+* Values are used directly during export (not fetched from database)
+* Perfect when you want to set specific custom values
+* Example: `{"my_custom_setting": "custom_value", "another_setting": {"key": "value"}}`
+
+**How to Use:**
+1. Go to Appearance → Smart Export
+2. Select the plugins you want to export
+3. Click the settings button (⚙️) next to any plugin
+4. Enter your custom options in the modal using either format
+5. The plugin will validate your JSON and save it
+6. Export as usual - custom options will be included automatically
 
 = Where are the demo import files and the log files saved? =
 
@@ -615,10 +657,31 @@ This plugin supports exporting settings from any WordPress plugin:
   * Mix and match - export only the plugins you need
   * All plugin settings packaged in one ZIP file
 
+* **Custom Plugin Options (NEW in 1.2.2):**
+  * Add custom option names or values for any selected plugin during export
+  * Support for **JSON Array format**: `["option_name_1", "option_name_2"]` - fetches current values from database
+  * Support for **JSON Object format**: `{"option_name_1": "value1", "option_name_2": "value2"}` - uses provided values directly
+  * Beautiful modal interface with JSON validation and examples
+  * Visual indicators show which plugins have custom options configured
+  * Works seamlessly with automatic plugin detection
+
+* **Supported JSON Formats for Custom Plugin Options:**
+  * **JSON Array** - List of option names: `["option_name_1", "option_name_2", "another_option"]`
+    * All items must be non-empty strings
+    * Values are fetched from the database during export
+    * Use when you want current database values
+  * **JSON Object** - Option names with values: `{"option_name_1": "value1", "option_name_2": {"nested": "data"}}`
+    * Keys must be non-empty strings (option names)
+    * Values can be any valid JSON type: strings, numbers, booleans, arrays, objects, null
+    * Values are used directly during export
+    * Use when you want to set specific custom values
+
 * **Example Usage:**
   * Export WooCommerce settings
   * Export Contact Form 7 forms
   * Export any custom plugin's settings
+  * Add custom options with specific values using JSON Object format
+  * Add custom option names to fetch from database using JSON Array format
   * All in one convenient ZIP file
 
 = I can't activate the plugin, because of a fatal error, what can I do? =
@@ -641,6 +704,38 @@ Please visit this [docs page](https://github.com/buildbycj/smart-one-click-setup
 4. How the Recommended & Required theme plugins step looks like, just before the import step.
 
 == Changelog ==
+
+= 1.2.2 =
+
+*Release Date - 20 Nov 2025*
+
+* **NEW: Custom Plugin Options Feature**
+  * Add custom plugin options for any selected plugin during export
+  * Support for JSON Array format: `["option_name_1", "option_name_2"]` - fetches values from database
+  * Support for JSON Object format: `{"option_name_1": "value1", "option_name_2": "value2"}` - uses provided values directly
+  * Beautiful modal interface with JSON validation
+  * Visual indicators for plugins with custom options
+  * Seamless integration with existing plugin settings export
+* **NEW: Single-Option Plugin Detection**
+  * Automatic detection of plugins that store all settings in a single option (nested structure)
+  * Supports plugins like keystone-framework with sections/fields structure
+  * Smart option name detection (checks database for existing options)
+  * Generic detection works for any plugin with nested structures
+* **Enhanced Plugin Settings Import/Export**
+  * Improved JSON encoding with proper Unicode and formatting support
+  * Better error handling for JSON encoding failures
+  * Enhanced logging to show imported option counts and names
+  * Tracks all imported options even if values didn't change
+  * Proper WordPress hooks triggering for all imported options
+  * Improved unserialize handling for custom JSON values
+* **Widget Export Format Fix**
+  * Fixed widget export format to match importer expectations
+  * Widgets now export with `widget_id` as key for proper import
+* **UI Improvements**
+  * Added settings button next to each plugin in export list
+  * Modal interface for adding custom plugin options
+  * Better examples and descriptions in the UI
+  * Improved error messages and validation
 
 = 1.2.0 =
 
