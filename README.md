@@ -26,7 +26,7 @@ Perfect for theme authors who want to provide their users with a one-click demo 
 ## 🎯 Key Features
 
 - **✨ One-Click ZIP Import/Export** - Export everything to a single ZIP file and import from a single ZIP file
-- **🎨 Elementor Compatible** - Full Elementor support for templates, page data, and kit settings
+- **🎨 Elementor Compatible** - Full Elementor support for templates, page data, and kit settings (export and import)
 - **🔌 Any Plugin Settings Import/Export** - Export settings from ANY plugin, not just predefined ones
 - **🌐 Remote File Support** - Import from remote URLs with support for presigned URLs (Amazon S3, etc.)
 - **🚀 Smart Import Interface** - Predefined demo imports and manual ZIP upload with tabbed interface
@@ -117,6 +117,19 @@ socs_display_smart_import( array(
 Contributions are welcome! Please refer to our [contributing guidelines](https://github.com/buildbycj/smart-one-click-setup/blob/main/CONTRIBUTING.md) for more information.
 
 ## 📝 Changelog
+
+### 1.2.0 (November 20, 2025)
+
+* **NEW: Full Elementor Site Kit Import Support**
+  * Import Elementor Site Kit settings (colors, typography, global styles) from exported `elementor.json` files
+  * Automatically sets the imported kit as the active Elementor Site Kit
+  * Import Elementor page and template data with proper post ID mapping
+  * Preserves all Elementor designs, CSS, and edit mode settings
+  * Seamless integration with Elementor Pro features
+  * Complete Elementor data import workflow - from export to import in one click
+* Enhanced Elementor compatibility - now supports both export and import of complete Elementor configurations
+* Improved import process - Elementor data is imported after content import to ensure proper post ID mapping
+* Better error handling and logging for Elementor import operations
 
 ### 1.1.1 (November 19, 2025)
 

@@ -93,12 +93,11 @@ class Exporter {
 			return new \WP_Error( 'export_dir_not_writable', esc_html__( 'Export directory is not writable. Please check file permissions.', 'smart-one-click-setup' ) );
 		}
 
-		$timestamp = gmdate( 'Y-m-d__H-i-s' );
 		$export_files = array();
 
 		// Export content (XML).
 		if ( ! empty( $this->export_options['content'] ) ) {
-			$content_file = $this->export_content( $timestamp );
+			$content_file = $this->export_content();
 			if ( is_wp_error( $content_file ) ) {
 				return $content_file;
 			}
@@ -109,7 +108,7 @@ class Exporter {
 
 		// Export widgets.
 		if ( ! empty( $this->export_options['widgets'] ) ) {
-			$widget_file = $this->export_widgets( $timestamp );
+			$widget_file = $this->export_widgets();
 			if ( is_wp_error( $widget_file ) ) {
 				return $widget_file;
 			}
@@ -120,7 +119,7 @@ class Exporter {
 
 		// Export customizer.
 		if ( ! empty( $this->export_options['customizer'] ) ) {
-			$customizer_file = $this->export_customizer( $timestamp );
+			$customizer_file = $this->export_customizer();
 			if ( is_wp_error( $customizer_file ) ) {
 				return $customizer_file;
 			}
@@ -131,7 +130,7 @@ class Exporter {
 
 		// Export plugin settings.
 		if ( ! empty( $this->export_options['plugins'] ) && is_array( $this->export_options['plugins'] ) && ! empty( $this->export_options['plugins'] ) ) {
-			$plugins_file = $this->export_plugin_settings( $timestamp );
+			$plugins_file = $this->export_plugin_settings();
 			if ( is_wp_error( $plugins_file ) ) {
 				// Don't fail if no plugin settings found, just skip it.
 				if ( 'no_plugin_settings' !== $plugins_file->get_error_code() ) {
@@ -142,9 +141,9 @@ class Exporter {
 			}
 		}
 
-		// Export Elementor data.
+		// Export Elementor Style Kit data.
 		if ( ! empty( $this->export_options['elementor'] ) && class_exists( '\Elementor\Plugin' ) ) {
-			$elementor_file = $this->export_elementor( $timestamp );
+			$elementor_file = $this->export_elementor();
 			if ( is_wp_error( $elementor_file ) ) {
 				// Don't fail if no Elementor data found, just skip it.
 				if ( 'no_elementor_data' !== $elementor_file->get_error_code() ) {
@@ -156,7 +155,7 @@ class Exporter {
 		}
 
 		// Create ZIP archive.
-		$zip_file = $this->create_zip_archive( $export_files, $timestamp );
+		$zip_file = $this->create_zip_archive( $export_files );
 		if ( is_wp_error( $zip_file ) ) {
 			return $zip_file;
 		}
@@ -178,10 +177,9 @@ class Exporter {
 	/**
 	 * Export WordPress content to XML.
 	 *
-	 * @param string $timestamp Timestamp for filename.
 	 * @return string|WP_Error File path or WP_Error.
 	 */
-	private function export_content( $timestamp ) {
+	private function export_content() {
 		require_once ABSPATH . 'wp-admin/includes/export.php';
 
 		$args = array(
@@ -200,7 +198,7 @@ class Exporter {
 			return new \WP_Error( 'export_failed', esc_html__( 'Content export failed. No data was exported.', 'smart-one-click-setup' ) );
 		}
 
-		$filename = 'content-' . $timestamp . '.xml';
+		$filename = 'content.xml';
 		$filepath = $this->export_dir . $filename;
 
 		$result = Helpers::write_to_file( $export_data, $filepath );
@@ -219,10 +217,9 @@ class Exporter {
 	/**
 	 * Export widgets.
 	 *
-	 * @param string $timestamp Timestamp for filename.
 	 * @return string|WP_Error File path or WP_Error.
 	 */
-	private function export_widgets( $timestamp ) {
+	private function export_widgets() {
 		global $wp_registered_widgets;
 
 		$widget_data = array();
@@ -275,7 +272,7 @@ class Exporter {
 		// Allow filtering of widget data.
 		$widget_data = Helpers::apply_filters( 'socs/export_widget_data', $widget_data );
 
-		$filename = 'widgets-' . $timestamp . '.json';
+		$filename = 'widgets.json';
 		$filepath = $this->export_dir . $filename;
 
 		// Always create the file, even if empty (for consistency).
@@ -295,10 +292,9 @@ class Exporter {
 	/**
 	 * Export customizer settings.
 	 *
-	 * @param string $timestamp Timestamp for filename.
 	 * @return string|WP_Error File path or WP_Error.
 	 */
-	private function export_customizer( $timestamp ) {
+	private function export_customizer() {
 		$theme = get_stylesheet();
 		$mods = get_theme_mods();
 
@@ -310,7 +306,7 @@ class Exporter {
 		// Allow filtering of customizer data.
 		$data = Helpers::apply_filters( 'socs/export_customizer_data', $data );
 
-		$filename = 'customizer-' . $timestamp . '.dat';
+		$filename = 'customizer.dat';
 		$filepath = $this->export_dir . $filename;
 
 		$result = Helpers::write_to_file( serialize( $data ), $filepath );
@@ -324,10 +320,9 @@ class Exporter {
 	/**
 	 * Export plugin settings.
 	 *
-	 * @param string $timestamp Timestamp for filename.
 	 * @return string|WP_Error File path or WP_Error.
 	 */
-	private function export_plugin_settings( $timestamp ) {
+	private function export_plugin_settings() {
 		$plugin_settings = array();
 
 		foreach ( $this->export_options['plugins'] as $plugin_slug ) {
@@ -344,7 +339,7 @@ class Exporter {
 		// Allow filtering of plugin settings.
 		$plugin_settings = Helpers::apply_filters( 'socs/export_plugin_settings_data', $plugin_settings );
 
-		$filename = 'plugin-settings-' . $timestamp . '.json';
+		$filename = 'plugin-settings.json';
 		$filepath = $this->export_dir . $filename;
 
 		$result = Helpers::write_to_file( wp_json_encode( $plugin_settings, JSON_PRETTY_PRINT ), $filepath );
@@ -387,19 +382,18 @@ class Exporter {
 	}
 
 	/**
-	 * Export Elementor data.
+	 * Export Elementor Style Kit data.
 	 *
-	 * @param string $timestamp Timestamp for filename.
 	 * @return string|WP_Error File path or WP_Error.
 	 */
-	private function export_elementor( $timestamp ) {
+	private function export_elementor() {
 		if ( ! class_exists( '\Elementor\Plugin' ) ) {
 			return new \WP_Error( 'elementor_not_active', esc_html__( 'Elementor is not active.', 'smart-one-click-setup' ) );
 		}
 
 		$elementor_data = array();
 
-		// Export Elementor kit settings.
+		// Export Elementor Style Kit kit settings.
 		$kit_id = \Elementor\Plugin::$instance->kits_manager->get_active_id();
 		if ( $kit_id ) {
 			$kit_settings = get_post_meta( $kit_id, '_elementor_page_settings', true );
@@ -408,7 +402,7 @@ class Exporter {
 			}
 		}
 
-		// Export Elementor templates and page data.
+		// Export Elementor Style Kit templates and page data.
 		// This meta_query is necessary to find all posts with Elementor data for export.
 		$posts = get_posts( array(
 			'post_type'      => array( 'page', 'elementor_library' ),
@@ -448,7 +442,7 @@ class Exporter {
 			return new \WP_Error( 'no_elementor_data', esc_html__( 'No Elementor data found to export.', 'smart-one-click-setup' ) );
 		}
 
-		$filename = 'elementor-' . $timestamp . '.json';
+		$filename = 'elementor.json';
 		$filepath = $this->export_dir . $filename;
 
 		$result = Helpers::write_to_file( wp_json_encode( $elementor_data, JSON_PRETTY_PRINT ), $filepath );
@@ -462,11 +456,10 @@ class Exporter {
 	/**
 	 * Create ZIP archive from export files.
 	 *
-	 * @param array  $files Array of file paths.
-	 * @param string $timestamp Timestamp for filename.
+	 * @param array $files Array of file paths.
 	 * @return string|WP_Error ZIP file path or WP_Error.
 	 */
-	private function create_zip_archive( $files, $timestamp ) {
+	private function create_zip_archive( $files ) {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			return new \WP_Error( 'zip_not_supported', esc_html__( 'ZIP archive is not supported on this server.', 'smart-one-click-setup' ) );
 		}
@@ -484,7 +477,7 @@ class Exporter {
 			return new \WP_Error( 'no_files_to_export', esc_html__( 'No files to export. Please select at least one export option.', 'smart-one-click-setup' ) );
 		}
 
-		$zip_filename = 'demo-export-' . $timestamp . '.zip';
+		$zip_filename = 'demo-export.zip';
 		$zip_filepath = $this->export_dir . $zip_filename;
 
 		$zip = new ZipArchive();
@@ -510,7 +503,7 @@ class Exporter {
 			'wp_version'     => get_bloginfo( 'version' ),
 			'export_version' => defined( 'SOCS_VERSION' ) ? SOCS_VERSION : '1.0.0',
 		);
-		$info_file = $this->export_dir . 'export-info-' . $timestamp . '.json';
+		$info_file = $this->export_dir . 'export-info.json';
 		$info_result = Helpers::write_to_file( wp_json_encode( $info, JSON_PRETTY_PRINT ), $info_file );
 		if ( ! is_wp_error( $info_result ) && file_exists( $info_file ) ) {
 			$zip->addFile( $info_file, 'export-info.json' );

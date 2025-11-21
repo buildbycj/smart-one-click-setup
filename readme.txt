@@ -4,7 +4,7 @@ Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 License: GPLv3 or later
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
@@ -575,7 +575,7 @@ You can import from a single ZIP file containing all your exported data. The plu
 
 This plugin provides complete Elementor support:
 
-* **Export Elementor Data:**
+* **Export Elementor Style Kit Data:**
   * All Elementor templates and page data
   * Elementor kit settings (colors, typography, etc.)
   * Elementor CSS and edit mode settings
@@ -583,6 +583,8 @@ This plugin provides complete Elementor support:
 
 * **Import Elementor Data:**
   * Automatic detection of Elementor data in ZIP files
+  * Import Elementor Site Kit settings and automatically set as active kit
+  * Import Elementor page and template data with proper post ID mapping
   * Preserves all Elementor designs and configurations
   * Works seamlessly with Elementor Pro features
   * Maintains template relationships and settings
@@ -639,6 +641,21 @@ Please visit this [docs page](https://github.com/buildbycj/smart-one-click-setup
 4. How the Recommended & Required theme plugins step looks like, just before the import step.
 
 == Changelog ==
+
+= 1.2.0 =
+
+*Release Date - 20 Nov 2025*
+
+* **NEW: Full Elementor Site Kit Import Support**
+  * Import Elementor Site Kit settings (colors, typography, global styles) from exported `elementor.json` files
+  * Automatically sets the imported kit as the active Elementor Site Kit
+  * Import Elementor page and template data with proper post ID mapping
+  * Preserves all Elementor designs, CSS, and edit mode settings
+  * Seamless integration with Elementor Pro features
+  * Complete Elementor data import workflow - from export to import in one click
+* Enhanced Elementor compatibility - now supports both export and import of complete Elementor configurations
+* Improved import process - Elementor data is imported after content import to ensure proper post ID mapping
+* Better error handling and logging for Elementor import operations
 
 = 1.1.1 =
 

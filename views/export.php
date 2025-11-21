@@ -136,8 +136,8 @@ Helpers::do_action( 'socs/plugin_page_header' );
 											<div class="socs-icon-container">
 												<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/layout.svg' ); ?>" class="socs-icon--layout" alt="<?php esc_attr_e( 'Elementor export icon', 'smart-one-click-setup' ); ?>">
 											</div>
-											<h3><?php esc_html_e( 'Export Elementor', 'smart-one-click-setup' ); ?></h3>
-											<p><?php esc_html_e( 'Export Elementor templates, page data, and kit settings.', 'smart-one-click-setup' ); ?></p>
+											<h3><?php esc_html_e( 'Export Elementor Style Kit', 'smart-one-click-setup' ); ?></h3>
+											<p><?php esc_html_e( 'Export Elementor Style Kit style kit settings.', 'smart-one-click-setup' ); ?></p>
 										</label>
 										<a href="https://socs.buildbycj.com/#user-guide" target="_blank" rel="noopener noreferrer" class="socs__card-content-info">
 											<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/info-circle.svg' ); ?>" alt="<?php esc_attr_e( 'Info icon', 'smart-one-click-setup' ); ?>">
