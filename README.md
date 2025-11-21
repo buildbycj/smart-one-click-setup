@@ -118,19 +118,6 @@ Contributions are welcome! Please refer to our [contributing guidelines](https:/
 
 ## 📝 Changelog
 
-### 1.2.1 (November 21, 2025)
-
-* **IMPROVED: Elementor Import Conflict Resolution**
-  * Enhanced Elementor import to prevent conflicts with XML content import
-  * Elementor import now properly runs after XML import (priority 50) to ensure complete data
-  * Added Elementor hook triggers for proper integration (`elementor/document/before_save`, `elementor/document/after_save`, `elementor/kit/update_settings`)
-  * Improved cache clearing for both posts and kits
-  * Added proper validation checks for Elementor availability and kits_manager
-  * Added developer filters: `socs/enable_elementor_import`, `socs/elementor_import_post_data`, `socs/elementor_import_kit_settings`
-  * Better error handling and validation throughout Elementor import process
-* Fixed potential conflicts between XML import and Elementor data import
-* Enhanced compatibility with Elementor's internal processes
-
 ### 1.2.0 (November 20, 2025)
 
 * **NEW: Full Elementor Site Kit Import Support**
