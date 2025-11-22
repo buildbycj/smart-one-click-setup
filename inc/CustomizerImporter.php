@@ -124,6 +124,8 @@ class CustomizerImporter {
 			// Get post ID mapping from content import (for remapping page IDs).
 			$post_id_mapping = array();
 			$socs = SmartOneClickSetup::get_instance();
+			
+			// Try to get mapping from importer instance first.
 			if ( ! empty( $socs->importer ) && method_exists( $socs->importer, 'get_importer_data' ) ) {
 				$importer_data = $socs->importer->get_importer_data();
 				if ( ! empty( $importer_data['mapping']['post'] ) ) {
@@ -131,23 +133,37 @@ class CustomizerImporter {
 					$post_id_mapping = $importer_data['mapping']['post'];
 				}
 			}
+			
+			// If mapping not available from importer, try to get it from transient.
+			// This is important for customizer import which happens in a separate AJAX call.
+			if ( empty( $post_id_mapping ) ) {
+				$transient_data = get_transient( 'socs_importer_data' );
+				if ( ! empty( $transient_data ) && ! empty( $transient_data['mapping']['post'] ) ) {
+					$post_id_mapping = $transient_data['mapping']['post'];
+				}
+			}
 
+			// Process show_on_front first, then page_on_front and page_for_posts.
+			// This ensures show_on_front is set before page_on_front.
+			$show_on_front = null;
+			$page_on_front = null;
+			$page_for_posts = null;
+			
 			foreach ( $data['options'] as $option_key => $option_value ) {
-				// Remap page IDs for home page settings.
-				if ( in_array( $option_key, array( 'page_on_front', 'page_for_posts' ), true ) && ! empty( $option_value ) ) {
-					// Check if we have a mapping for this page ID.
-					if ( ! empty( $post_id_mapping[ $option_value ] ) ) {
-						$option_value = $post_id_mapping[ $option_value ];
-					} else {
-						// If no mapping found, try to find the page by title/slug from the export.
-						// This is a fallback if the mapping isn't available.
-						// For now, we'll use the value as-is and log a warning if page doesn't exist.
-						$page_exists = get_post( $option_value );
-						if ( ! $page_exists || 'page' !== $page_exists->post_type ) {
-							// Page not found or wrong type, skip this option.
-							continue;
-						}
-					}
+				if ( 'show_on_front' === $option_key ) {
+					$show_on_front = $option_value;
+				} elseif ( 'page_on_front' === $option_key ) {
+					$page_on_front = $option_value;
+				} elseif ( 'page_for_posts' === $option_key ) {
+					$page_for_posts = $option_value;
+				}
+			}
+			
+			// Import all other options first (non-home-page options).
+			foreach ( $data['options'] as $option_key => $option_value ) {
+				// Skip home page settings - we'll handle them separately.
+				if ( in_array( $option_key, array( 'show_on_front', 'page_on_front', 'page_for_posts' ), true ) ) {
+					continue;
 				}
 
 				$option = new CustomizerOption( $wp_customize, $option_key, array(
@@ -157,6 +173,74 @@ class CustomizerImporter {
 				) );
 
 				$option->import( $option_value );
+			}
+			
+			// Now handle home page settings with proper remapping and validation.
+			// First, set show_on_front if it exists.
+			if ( null !== $show_on_front ) {
+				update_option( 'show_on_front', $show_on_front );
+			}
+			
+			// Remap and set page_on_front if needed.
+			if ( null !== $page_on_front && ! empty( $page_on_front ) ) {
+				$mapped_page_id = $page_on_front;
+				
+				// Check if we have a mapping for this page ID.
+				if ( ! empty( $post_id_mapping[ $page_on_front ] ) ) {
+					$mapped_page_id = $post_id_mapping[ $page_on_front ];
+				}
+				
+				// Verify the page exists and is a valid page.
+				$page_exists = get_post( $mapped_page_id );
+				if ( $page_exists && 'page' === $page_exists->post_type ) {
+					update_option( 'page_on_front', $mapped_page_id );
+					// Ensure show_on_front is set to 'page' if page_on_front is set.
+					if ( null === $show_on_front || 'page' !== $show_on_front ) {
+						update_option( 'show_on_front', 'page' );
+					}
+				} else {
+					// Log warning if page not found.
+					$socs = SmartOneClickSetup::get_instance();
+					$log_file_path = $socs->get_log_file_path();
+					Helpers::append_to_file(
+						sprintf(
+							/* translators: %s: Page ID */
+							esc_html__( 'Warning: Home page with ID %s was not found or is not a valid page. Home page setting was not applied.', 'smart-one-click-setup' ),
+							$mapped_page_id
+						),
+						$log_file_path,
+						esc_html__( 'Importing customizer settings', 'smart-one-click-setup' )
+					);
+				}
+			}
+			
+			// Remap and set page_for_posts if needed.
+			if ( null !== $page_for_posts && ! empty( $page_for_posts ) ) {
+				$mapped_page_id = $page_for_posts;
+				
+				// Check if we have a mapping for this page ID.
+				if ( ! empty( $post_id_mapping[ $page_for_posts ] ) ) {
+					$mapped_page_id = $post_id_mapping[ $page_for_posts ];
+				}
+				
+				// Verify the page exists and is a valid page.
+				$page_exists = get_post( $mapped_page_id );
+				if ( $page_exists && 'page' === $page_exists->post_type ) {
+					update_option( 'page_for_posts', $mapped_page_id );
+				} else {
+					// Log warning if page not found.
+					$socs = SmartOneClickSetup::get_instance();
+					$log_file_path = $socs->get_log_file_path();
+					Helpers::append_to_file(
+						sprintf(
+							/* translators: %s: Page ID */
+							esc_html__( 'Warning: Posts page with ID %s was not found or is not a valid page. Posts page setting was not applied.', 'smart-one-click-setup' ),
+							$mapped_page_id
+						),
+						$log_file_path,
+						esc_html__( 'Importing customizer settings', 'smart-one-click-setup' )
+					);
+				}
 			}
 		}
 

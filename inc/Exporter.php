@@ -449,8 +449,8 @@ class Exporter {
 				$placeholders = implode( ',', array_fill( 0, count( $custom_options ), '%s' ) );
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$options = $wpdb->get_results(
-					$wpdb->prepare(
-						"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)",
+					$wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)", // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 						$custom_options
 					)
 				);
@@ -505,7 +505,7 @@ class Exporter {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$custom_option_results = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)",
+					"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name IN ($placeholders)", //phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$custom_options
 				)
 			);

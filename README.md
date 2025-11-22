@@ -253,6 +253,23 @@ add_action( 'socs/after_import', function( $selected_import ) {
 
 ## 📝 Changelog
 
+### 1.2.3 (November 22, 2025)
+
+* **Improved Customizer Import**
+  * Fixed page ID remapping for home page settings (page_on_front, page_for_posts)
+  * Improved mapping retrieval from importer instance and transient data
+  * Better handling of show_on_front, page_on_front, and page_for_posts options order
+  * Enhanced validation and error logging for page ID remapping
+  * Ensures show_on_front is set before page_on_front for proper home page configuration
+* **Enhanced Import Process**
+  * Added automatic rewrite rules flush after import completion to ensure permalinks work correctly
+  * Improved final import response with better error handling
+  * Always show log link after import completion (for both success and error cases)
+  * Better distinction between error log and regular log messages
+* **Code Quality Improvements**
+  * Fixed PHPCS warnings for prepared SQL queries in Exporter class
+  * Improved code documentation and comments
+
 ### 1.2.2 (November 20, 2025)
 
 * **NEW: Custom Plugin Options Feature**

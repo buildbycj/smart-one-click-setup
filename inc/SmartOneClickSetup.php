@@ -439,7 +439,15 @@ class SmartOneClickSetup {
 		Helpers::do_action( 'socs/after_content_import_execution', $this->selected_import_files, $this->import_files, $this->selected_index );
 
 		// Save the import data as a transient, so other import parts (in new AJAX calls) can use that data.
-		Helpers::set_socs_import_data_transient( $this->get_current_importer_data() );
+		// Include importer mapping data for page ID remapping in customizer import.
+		$importer_data = $this->get_current_importer_data();
+		if ( ! empty( $this->importer ) && method_exists( $this->importer, 'get_importer_data' ) ) {
+			$importer_mapping_data = $this->importer->get_importer_data();
+			if ( ! empty( $importer_mapping_data ) ) {
+				$importer_data = array_merge( $importer_data, $importer_mapping_data );
+			}
+		}
+		Helpers::set_socs_import_data_transient( $importer_data );
 
 		// Request the customizer import AJAX call.
 		if ( ! empty( $this->selected_import_files['customizer'] ) ) {
@@ -507,6 +515,9 @@ class SmartOneClickSetup {
 			Helpers::do_action( 'socs/after_all_import_execution', $this->selected_import_files, $this->import_files, $this->selected_index );
 		}
 
+		// Flush rewrite rules to ensure permalinks work correctly after import.
+		flush_rewrite_rules();
+
 		// Update terms count.
 		$this->update_terms_count();
 
@@ -530,25 +541,47 @@ class SmartOneClickSetup {
 		$response['subtitle'] = '<p>' . esc_html__( 'Congrats, your demo was imported successfully. You can now begin editing your site.', 'smart-one-click-setup' ) . '</p>';
 		$response['message'] = '<img class="socs-imported-content-imported socs-imported-content-imported--success" src="' . esc_url( SOCS_URL . 'assets/images/success.svg' ) . '" alt="' . esc_attr__( 'Successful Import', 'smart-one-click-setup' ) . '">';
 
-		if ( ! empty( $this->frontend_error_messages ) ) {
-			$response['subtitle'] = '<p>' . esc_html__( 'Your import completed, but some things may not have imported properly.', 'smart-one-click-setup' ) . '</p>';
+		// Determine log link text based on whether there are errors.
+		$has_errors = ! empty( $this->frontend_error_messages );
+		$log_link_text = $has_errors ? esc_html__( 'View error log', 'smart-one-click-setup' ) : esc_html__( 'View log', 'smart-one-click-setup' );
+
+		// Always show log link if log file path exists.
+		if ( ! empty( $this->log_file_path ) ) {
 			/* translators: %s: Link to the log file. */
 			$socs_log_link = sprintf(
 				'<a href="%s" target="_blank">%s</a>',
 				esc_url( Helpers::get_log_url( $this->log_file_path ) ),
-				esc_html__( 'View error log', 'smart-one-click-setup' )
+				$log_link_text
 			);
-			$response['subtitle'] .= '<p>' . sprintf(
-				/* translators: %s: Link to the log file. */
-				esc_html__( '%s for more information.', 'smart-one-click-setup' ),
-				wp_kses( $socs_log_link, array(
-					'a' => [
-						'href'   => [],
-						'target' => [],
-					],
-				) )
-			) . '</p>';
 
+			if ( $has_errors ) {
+				$response['subtitle'] = '<p>' . esc_html__( 'Your import completed, but some things may not have imported properly.', 'smart-one-click-setup' ) . '</p>';
+				$response['subtitle'] .= '<p>' . sprintf(
+					/* translators: %s: Link to the log file. */
+					esc_html__( '%s for more information.', 'smart-one-click-setup' ),
+					wp_kses( $socs_log_link, array(
+						'a' => [
+							'href'   => [],
+							'target' => [],
+						],
+					) )
+				) . '</p>';
+				$response['message'] = '<div class="notice notice-warning"><p>' . $this->frontend_error_messages_display() . '</p></div>';
+			} else {
+				$response['subtitle'] .= '<p>' . sprintf(
+					/* translators: %s: Link to the log file. */
+					esc_html__( '%s to see import details.', 'smart-one-click-setup' ),
+					wp_kses( $socs_log_link, array(
+						'a' => [
+							'href'   => [],
+							'target' => [],
+						],
+					) )
+				) . '</p>';
+			}
+		} elseif ( $has_errors ) {
+			// Fallback for errors when no log file path exists.
+			$response['subtitle'] = '<p>' . esc_html__( 'Your import completed, but some things may not have imported properly.', 'smart-one-click-setup' ) . '</p>';
 			$response['message'] = '<div class="notice notice-warning"><p>' . $this->frontend_error_messages_display() . '</p></div>';
 		}
 
