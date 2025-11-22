@@ -132,6 +132,10 @@ class Importer {
 		// Skip invalid media file types (ZIP files, etc.) during attachment import.
 		add_filter( 'wxr_importer.pre_process.post', array( $this, 'skip_invalid_media_attachments' ), 10, 1 );
 
+		// Skip Elementor kits during content import - they are handled separately via elementor.json.
+		// This prevents duplicate kits from being created when content.xml includes Elementor library posts.
+		add_filter( 'wxr_importer.pre_process.post', array( $this, 'skip_elementor_kits' ), 10, 1 );
+
 		// Disables generation of multiple image sizes (thumbnails) in the content import step.
 		if ( ! Helpers::apply_filters( 'socs/regenerate_thumbnails_in_content_import', true ) ) {
 			add_filter( 'intermediate_image_sizes_advanced', '__return_null' );
@@ -291,6 +295,108 @@ class Importer {
 			return array();
 		}
 
+		return $data;
+	}
+
+	/**
+	 * Skip Elementor kits during content import.
+	 * Elementor kits are handled separately via elementor.json import,
+	 * so we should not import them from content.xml to avoid duplicates.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array $data Post data to be imported.
+	 * @return array Empty array to skip, or original data to continue.
+	 */
+	public function skip_elementor_kits( $data ) {
+		// Only process elementor_library posts.
+		if ( empty( $data ) || empty( $data['post_type'] ) || $data['post_type'] !== 'elementor_library' ) {
+			return $data;
+		}
+
+		// Check post title - common kit names to skip.
+		$post_title = '';
+		if ( ! empty( $data['post_title'] ) ) {
+			$post_title = strtolower( trim( $data['post_title'] ) );
+		} elseif ( ! empty( $data['title'] ) ) {
+			$post_title = strtolower( trim( $data['title'] ) );
+		}
+
+		// Skip if title suggests it's a default/active kit (these are handled via elementor.json).
+		$kit_titles = array( 'default kit', 'default', 'active kit', 'site kit' );
+		foreach ( $kit_titles as $kit_title ) {
+			if ( $post_title === $kit_title || strpos( $post_title, $kit_title ) !== false ) {
+				// Likely a kit - skip it to be safe.
+				return array();
+			}
+		}
+
+		// Check if this post has the 'kit' taxonomy term.
+		// Elementor kits have taxonomy 'elementor_library_type' with term 'kit'.
+		if ( ! empty( $data['terms'] ) && is_array( $data['terms'] ) ) {
+			foreach ( $data['terms'] as $term ) {
+				// Check different possible term structures.
+				$taxonomy = '';
+				$slug = '';
+				$name = '';
+				
+				if ( isset( $term['domain'] ) ) {
+					$taxonomy = $term['domain'];
+				} elseif ( isset( $term['taxonomy'] ) ) {
+					$taxonomy = $term['taxonomy'];
+				}
+				
+				if ( isset( $term['slug'] ) ) {
+					$slug = strtolower( trim( $term['slug'] ) );
+				}
+				
+				if ( isset( $term['name'] ) ) {
+					$name = strtolower( trim( $term['name'] ) );
+				}
+				
+				if ( $taxonomy === 'elementor_library_type' && ( $slug === 'kit' || $name === 'kit' ) ) {
+					// This is an Elementor kit - skip it.
+					// Kit settings are imported via elementor.json, not content.xml.
+					return array();
+				}
+			}
+		}
+
+		// Check meta data for kit type (meta value might be serialized).
+		if ( ! empty( $data['meta'] ) && is_array( $data['meta'] ) ) {
+			foreach ( $data['meta'] as $meta ) {
+				if ( empty( $meta['key'] ) ) {
+					continue;
+				}
+				
+				// Check for kit-related meta keys.
+				if ( $meta['key'] === '_elementor_template_type' || $meta['key'] === 'elementor_template_type' ) {
+					$meta_value = '';
+					if ( isset( $meta['value'] ) ) {
+						$meta_value = $meta['value'];
+						// Handle serialized values.
+						if ( is_serialized( $meta_value ) ) {
+							$meta_value = maybe_unserialize( $meta_value );
+						}
+					}
+					
+					// Check if value is 'kit' (could be string or in array).
+					if ( $meta_value === 'kit' || ( is_array( $meta_value ) && in_array( 'kit', $meta_value, true ) ) ) {
+						// This is an Elementor kit - skip it.
+						return array();
+					}
+				}
+				
+				// Also check for _elementor_page_settings which indicates it's a kit.
+				if ( $meta['key'] === '_elementor_page_settings' && ! empty( $meta['value'] ) ) {
+					// If it has page settings, it's likely a kit (kits have page settings).
+					// Skip it to be safe - kits are handled via elementor.json.
+					return array();
+				}
+			}
+		}
+
+		// Not a kit, continue with import (could be a template or other Elementor library item).
 		return $data;
 	}
 }

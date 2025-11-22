@@ -153,8 +153,10 @@ class ElementorImporter {
 
 	/**
 	 * Import Elementor kit settings and make it active.
+	 * Looks for existing "Imported Site Kit" and updates it, or creates a new one if it doesn't exist.
+	 * This ensures we always use the same imported kit and preserve other kits like "Default Kit".
 	 *
-	 * @param array $kit_settings Kit settings array.
+	 * @param array $kit_settings Kit settings array from elementor.json.
 	 * @return array|WP_Error Results array or WP_Error.
 	 */
 	private static function import_kit_settings( $kit_settings ) {
@@ -162,40 +164,123 @@ class ElementorImporter {
 			return new \WP_Error( 'elementor_not_active', esc_html__( 'Elementor is not active.', 'smart-one-click-setup' ) );
 		}
 
-		$elementor = \Elementor\Plugin::$instance;
-
-		// Always create a new kit for the imported settings to ensure it's a fresh import.
-		// Create a new kit post.
-		$kit_post = array(
-			'post_title'  => esc_html__( 'Imported Site Kit', 'smart-one-click-setup' ),
-			'post_status' => 'publish',
-			'post_type'   => 'elementor_library',
-			'meta_input'  => array(
-				'_elementor_template_type' => 'kit',
-				'_elementor_edit_mode'     => 'builder',
-			),
-		);
-
-		$kit_id = wp_insert_post( $kit_post );
-
-		if ( is_wp_error( $kit_id ) ) {
+		// Validate kit settings.
+		if ( empty( $kit_settings ) || ! is_array( $kit_settings ) ) {
 			return new \WP_Error(
-				'kit_creation_failed',
-				sprintf( /* translators: %s: Error message */
-					esc_html__( 'Failed to create Elementor kit: %s', 'smart-one-click-setup' ),
-					$kit_id->get_error_message()
-				)
+				'invalid_kit_settings',
+				esc_html__( 'Invalid kit settings provided. Kit settings must be a non-empty array.', 'smart-one-click-setup' )
 			);
 		}
 
-		// Set the kit type taxonomy.
-		wp_set_object_terms( $kit_id, 'kit', 'elementor_library_type' );
+		$elementor = \Elementor\Plugin::$instance;
+		$kit_id = null;
+		$is_new_kit = false;
 
-		// Update kit settings.
-		update_post_meta( $kit_id, '_elementor_page_settings', $kit_settings );
+		// Look for existing "Imported Site Kit" specifically to avoid updating other kits.
+		// This ensures we always use/update the same imported kit and preserve other kits like "Default Kit".
+		$imported_kit_title = esc_html__( 'Imported Site Kit', 'smart-one-click-setup' );
+		
+		// Query for existing "Imported Site Kit" by title and taxonomy.
+		$existing_imported_kits = get_posts( array(
+			'post_type'      => 'elementor_library',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'tax_query'      => array(
+				array(
+					'taxonomy' => 'elementor_library_type',
+					'field'    => 'slug',
+					'terms'    => 'kit',
+				),
+			),
+		) );
+
+		// Find the kit with matching title.
+		$existing_kit_id = null;
+		if ( ! empty( $existing_imported_kits ) && is_array( $existing_imported_kits ) ) {
+			foreach ( $existing_imported_kits as $kit_post_id ) {
+				$kit_post = get_post( $kit_post_id );
+				if ( $kit_post && $imported_kit_title === $kit_post->post_title ) {
+					$existing_kit_id = $kit_post_id;
+					break;
+				}
+			}
+		}
+
+		// If "Imported Site Kit" exists, use it.
+		if ( ! empty( $existing_kit_id ) ) {
+			$existing_kit = get_post( $existing_kit_id );
+			
+			// Verify it's a valid kit.
+			if ( $existing_kit && 'elementor_library' === $existing_kit->post_type ) {
+				$kit_type = wp_get_object_terms( $existing_kit_id, 'elementor_library_type', array( 'fields' => 'slugs' ) );
+				if ( ! is_wp_error( $kit_type ) && in_array( 'kit', $kit_type, true ) ) {
+					$kit_id = $existing_kit_id;
+				}
+			}
+		}
+
+		// Create new "Imported Site Kit" if it doesn't exist.
+		if ( empty( $kit_id ) ) {
+			$kit_post = array(
+				'post_title'  => esc_html__( 'Imported Site Kit', 'smart-one-click-setup' ),
+				'post_status' => 'publish',
+				'post_type'   => 'elementor_library',
+				'meta_input'  => array(
+					'_elementor_template_type' => 'kit',
+					'_elementor_edit_mode'     => 'builder',
+				),
+			);
+
+			$kit_id = wp_insert_post( $kit_post );
+
+			if ( is_wp_error( $kit_id ) ) {
+				return new \WP_Error(
+					'kit_creation_failed',
+					sprintf( /* translators: %s: Error message */
+						esc_html__( 'Failed to create Elementor kit: %s', 'smart-one-click-setup' ),
+						$kit_id->get_error_message()
+					)
+				);
+			}
+
+			// Set the kit type taxonomy for new kit.
+			wp_set_object_terms( $kit_id, 'kit', 'elementor_library_type' );
+			$is_new_kit = true;
+		}
+
+		// For new kits, ensure we apply settings exactly as they are in elementor.json.
+		// Do not merge with any defaults - use the exact settings from the export.
+		// Make a deep copy to avoid any reference issues.
+		$settings_to_apply = $kit_settings;
+		if ( is_array( $kit_settings ) ) {
+			// Ensure we're working with a clean copy of the settings.
+			$settings_to_apply = json_decode( wp_json_encode( $kit_settings ), true );
+		}
+
+		// Update kit settings with exact settings from elementor.json.
+		// Use update_post_meta to ensure settings are saved exactly as provided.
+		$updated = update_post_meta( $kit_id, '_elementor_page_settings', $settings_to_apply );
+
+		// Also save using Elementor's method if available (for proper internal processing).
+		// But ensure it uses our exact settings, not merged defaults.
+		if ( method_exists( $elementor->kits_manager, 'save_kit_settings' ) ) {
+			try {
+				// Use Elementor's method to ensure proper saving and internal processing.
+				$elementor->kits_manager->save_kit_settings( $kit_id, $settings_to_apply );
+			} catch ( \Exception $e ) {
+				// If Elementor's method fails, we still have the post meta saved above.
+				// Log but don't fail the import.
+			}
+		}
+
+		// For new kits, also ensure _elementor_data meta is set (some Elementor versions require this).
+		if ( $is_new_kit ) {
+			// Set empty Elementor data structure for new kit.
+			update_post_meta( $kit_id, '_elementor_data', '[]' );
+		}
 
 		// Make this kit the active kit using Elementor's option.
-		// The active kit option name in Elementor.
 		update_option( 'elementor_active_kit', $kit_id );
 
 		// Also try to use Elementor's kits_manager method if available (for Elementor 3.0+).
@@ -213,11 +298,176 @@ class ElementorImporter {
 			$elementor->posts_css_manager->clear_cache();
 		}
 
+		// Clear kit-specific cache.
+		if ( method_exists( $elementor->kits_manager, 'clear_cache' ) ) {
+			$elementor->kits_manager->clear_cache();
+		}
+
+		// Clean up any duplicate kits that might have been created from content.xml import.
+		// This ensures we only have "Imported Site Kit" and original kits, no duplicates.
+		self::cleanup_duplicate_kits( $kit_id );
+
+		// Verify settings were updated.
+		$saved_settings = get_post_meta( $kit_id, '_elementor_page_settings', true );
+		if ( empty( $saved_settings ) ) {
+			return new \WP_Error(
+				'kit_settings_not_saved',
+				esc_html__( 'Kit settings were not saved properly. Please try again.', 'smart-one-click-setup' )
+			);
+		}
+
+		// Ensure settings from elementor.json are applied exactly (for both new and existing "Imported Site Kit").
+		// Re-apply settings if they don't match to ensure exact match.
+		// Normalize both arrays for comparison (handle potential serialization/formatting differences).
+		$imported_normalized = self::normalize_settings_for_comparison( $kit_settings );
+		$saved_normalized = self::normalize_settings_for_comparison( $saved_settings );
+		
+		// If key settings don't match, force re-save with exact settings from elementor.json.
+		if ( $imported_normalized !== $saved_normalized ) {
+			// Delete and re-save to ensure exact match.
+			delete_post_meta( $kit_id, '_elementor_page_settings' );
+			update_post_meta( $kit_id, '_elementor_page_settings', $settings_to_apply );
+			
+			// If Elementor's save method exists, use it again with exact settings.
+			if ( method_exists( $elementor->kits_manager, 'save_kit_settings' ) ) {
+				try {
+					$elementor->kits_manager->save_kit_settings( $kit_id, $settings_to_apply );
+				} catch ( \Exception $e ) {
+					// Continue even if Elementor's method fails - post meta is saved.
+				}
+			}
+		}
+
+		$message = $is_new_kit
+			? esc_html__( 'Elementor Site Kit created and activated successfully.', 'smart-one-click-setup' )
+			: esc_html__( 'Elementor Site Kit settings updated and activated successfully.', 'smart-one-click-setup' );
+
 		return array(
-			'success' => true,
-			'kit_id'  => $kit_id,
-			'message' => esc_html__( 'Elementor Site Kit imported and activated successfully.', 'smart-one-click-setup' ),
+			'success'     => true,
+			'kit_id'      => $kit_id,
+			'is_new_kit'  => $is_new_kit,
+			'message'     => $message,
 		);
+	}
+
+	/**
+	 * Clean up duplicate kits that may have been imported from content.xml.
+	 * Keeps only "Imported Site Kit" and original kits, removes duplicates.
+	 *
+	 * @param int $keep_kit_id The kit ID to keep (our imported kit).
+	 */
+	private static function cleanup_duplicate_kits( $keep_kit_id ) {
+		if ( empty( $keep_kit_id ) ) {
+			return;
+		}
+
+		// Get all Elementor kits.
+		$all_kits = get_posts( array(
+			'post_type'      => 'elementor_library',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'tax_query'      => array(
+				array(
+					'taxonomy' => 'elementor_library_type',
+					'field'    => 'slug',
+					'terms'    => 'kit',
+				),
+			),
+		) );
+
+		if ( empty( $all_kits ) || ! is_array( $all_kits ) ) {
+			return;
+		}
+
+		// Track kit titles to find duplicates.
+		$kit_titles = array();
+		$kits_to_delete = array();
+
+		foreach ( $all_kits as $kit_id ) {
+			// Always keep our imported kit.
+			if ( (int) $kit_id === (int) $keep_kit_id ) {
+				continue;
+			}
+
+			$kit = get_post( $kit_id );
+			if ( ! $kit ) {
+				continue;
+			}
+
+			$kit_title = strtolower( trim( $kit->post_title ) );
+
+			// Check if this is a duplicate title.
+			if ( isset( $kit_titles[ $kit_title ] ) ) {
+				// Found a duplicate - mark the newer one for deletion.
+				// Keep the older kit (original), delete the newer one (imported from content.xml).
+				$existing_kit_id = $kit_titles[ $kit_title ];
+				$existing_kit = get_post( $existing_kit_id );
+				
+				if ( $existing_kit && $kit->post_date > $existing_kit->post_date ) {
+					// Current kit is newer - delete it.
+					$kits_to_delete[] = $kit_id;
+				} else {
+					// Existing kit is newer or same - delete existing and keep current.
+					$kits_to_delete[] = $existing_kit_id;
+					$kit_titles[ $kit_title ] = $kit_id;
+				}
+			} else {
+				// First occurrence of this title - keep it.
+				$kit_titles[ $kit_title ] = $kit_id;
+			}
+		}
+
+		// Delete duplicate kits.
+		foreach ( $kits_to_delete as $kit_id_to_delete ) {
+			// Don't delete if it's our imported kit.
+			if ( (int) $kit_id_to_delete === (int) $keep_kit_id ) {
+				continue;
+			}
+			
+			// Delete the duplicate kit.
+			wp_delete_post( $kit_id_to_delete, true );
+		}
+	}
+
+	/**
+	 * Normalize settings array for comparison.
+	 * Handles potential differences in array ordering, null values, etc.
+	 *
+	 * @param array|mixed $settings Settings array to normalize.
+	 * @return string Normalized JSON string for comparison.
+	 */
+	private static function normalize_settings_for_comparison( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			return '';
+		}
+
+		// Sort array keys recursively for consistent comparison.
+		$normalized = self::ksort_recursive( $settings );
+		
+		// Convert to JSON for comparison (handles nested arrays/objects).
+		return wp_json_encode( $normalized, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+	}
+
+	/**
+	 * Recursively sort array by keys.
+	 *
+	 * @param array $array Array to sort.
+	 * @return array Sorted array.
+	 */
+	private static function ksort_recursive( $array ) {
+		if ( ! is_array( $array ) ) {
+			return $array;
+		}
+
+		ksort( $array );
+		foreach ( $array as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$array[ $key ] = self::ksort_recursive( $value );
+			}
+		}
+
+		return $array;
 	}
 
 	/**
@@ -364,6 +614,12 @@ class ElementorImporter {
 				if ( isset( $results['kit']['kit_id'] ) ) {
 					/* translators: %d: Kit ID */
 					echo esc_html( sprintf( __( 'Site Kit ID: %d', 'smart-one-click-setup' ), absint( $results['kit']['kit_id'] ) ) ) . PHP_EOL;
+					if ( isset( $results['kit']['is_new_kit'] ) ) {
+						$kit_status = $results['kit']['is_new_kit']
+							? esc_html__( 'New kit created', 'smart-one-click-setup' )
+							: esc_html__( 'Existing kit updated', 'smart-one-click-setup' );
+						echo esc_html( $kit_status ) . PHP_EOL;
+					}
 				}
 			} elseif ( is_wp_error( $results['kit'] ) ) {
 				echo esc_html__( 'Site Kit import failed: ', 'smart-one-click-setup' ) . esc_html( $results['kit']->get_error_message() ) . PHP_EOL;
