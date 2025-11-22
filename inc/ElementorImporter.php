@@ -363,7 +363,7 @@ class ElementorImporter {
 				echo esc_html( $results['kit']['message'] ) . PHP_EOL;
 				if ( isset( $results['kit']['kit_id'] ) ) {
 					/* translators: %d: Kit ID */
-					echo sprintf( esc_html__( 'Site Kit ID: %d', 'smart-one-click-setup' ), $results['kit']['kit_id'] ) . PHP_EOL;
+					echo esc_html( sprintf( __( 'Site Kit ID: %d', 'smart-one-click-setup' ), absint( $results['kit']['kit_id'] ) ) ) . PHP_EOL;
 				}
 			} elseif ( is_wp_error( $results['kit'] ) ) {
 				echo esc_html__( 'Site Kit import failed: ', 'smart-one-click-setup' ) . esc_html( $results['kit']->get_error_message() ) . PHP_EOL;
@@ -376,18 +376,18 @@ class ElementorImporter {
 			$posts_results = $results['posts'];
 			if ( isset( $posts_results['success'] ) || isset( $posts_results['failed'] ) || isset( $posts_results['skipped'] ) ) {
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Page/Template data imported: %d', 'smart-one-click-setup' ), $posts_results['success'] ) . PHP_EOL;
+				echo esc_html( sprintf( __( 'Page/Template data imported: %d', 'smart-one-click-setup' ), absint( $posts_results['success'] ) ) ) . PHP_EOL;
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Page/Template data failed: %d', 'smart-one-click-setup' ), $posts_results['failed'] ) . PHP_EOL;
+				echo esc_html( sprintf( __( 'Page/Template data failed: %d', 'smart-one-click-setup' ), absint( $posts_results['failed'] ) ) ) . PHP_EOL;
 				/* translators: %d: Number of posts */
-				echo sprintf( esc_html__( 'Page/Template data skipped: %d', 'smart-one-click-setup' ), $posts_results['skipped'] ) . PHP_EOL;
+				echo esc_html( sprintf( __( 'Page/Template data skipped: %d', 'smart-one-click-setup' ), absint( $posts_results['skipped'] ) ) ) . PHP_EOL;
 				echo PHP_EOL;
 
 				// Show details if available.
 				if ( ! empty( $posts_results['details'] ) ) {
 					foreach ( $posts_results['details'] as $detail ) {
 						$status_icon = 'success' === $detail['status'] ? '✓' : ( 'failed' === $detail['status'] ? '✗' : '⊘' );
-						echo $status_icon . ' ' . esc_html( $detail['title'] ) . ' - ' . esc_html( $detail['message'] ) . PHP_EOL;
+						echo esc_html( $status_icon ) . ' ' . esc_html( $detail['title'] ) . ' - ' . esc_html( $detail['message'] ) . PHP_EOL;
 					}
 				}
 			}

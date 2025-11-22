@@ -10,7 +10,7 @@ One-click import/export for demo content, widgets, customizer, plugin settings, 
 
 ## 📖 About
 
-Smart One Click Setup is a powerful WordPress plugin designed to simplify the process of importing and exporting demo content, theme settings, and plugin configurations. Whether you're a theme author looking to provide a seamless demo import experience for your users, or a developer needing to migrate site configurations, this plugin has you covered.
+Smart One Click Setup is a powerful WordPress plugin that simplifies importing and exporting demo content, theme settings, and plugin configurations. Whether you're a theme author providing a seamless demo import experience or a developer migrating site configurations, this plugin has you covered.
 
 **What makes it special?**
 
@@ -21,21 +21,44 @@ Smart One Click Setup is a powerful WordPress plugin designed to simplify the pr
 - **Universal Plugin Support**: Export settings from any WordPress plugin, not just predefined ones
 - **Remote & Local Support**: Import from remote URLs or local theme directories
 
-Perfect for theme authors who want to provide their users with a one-click demo import experience, and for developers who need to migrate complete site configurations between WordPress installations.
-
 ## 🎯 Key Features
 
-- **✨ One-Click ZIP Import/Export** - Export everything to a single ZIP file and import from a single ZIP file
-- **🎨 Elementor Compatible** - Full Elementor support for templates, page data, and kit settings (export and import)
-- **🔌 Any Plugin Settings Import/Export** - Export settings from ANY plugin, not just predefined ones
-  - **Custom Plugin Options** - Add custom option names or values for any plugin (JSON Array or Object format)
-  - **Single-Option Plugin Detection** - Automatically handles plugins with nested settings structures
-  - **Supported JSON Formats:**
-    - **JSON Array**: `["option_name_1", "option_name_2"]` - Fetches values from database
-    - **JSON Object**: `{"option_name_1": "value1", "option_name_2": "value2"}` - Uses provided values directly
-- **🌐 Remote File Support** - Import from remote URLs with support for presigned URLs (Amazon S3, etc.)
-- **🚀 Smart Import Interface** - Predefined demo imports and manual ZIP upload with tabbed interface
-- **⚙️ Developer-Friendly** - Comprehensive hooks and filters, WP-CLI commands, and template functions
+### ✨ One-Click ZIP Import/Export
+- Export everything to a single ZIP file - content, widgets, customizer, plugins, and Elementor data
+- Import from a single ZIP file - automatically detects and imports all available data
+- Easy site migration and backup - transfer your entire site configuration in one file
+
+### 🎨 Elementor Compatible
+- Full Elementor support - export and import Elementor templates, page data, and kit settings
+- Preserve all Elementor designs and configurations across sites
+- Seamless integration with Elementor Pro features
+
+### 🔌 Any Plugin Settings Import/Export
+- Export settings from ANY plugin - not just predefined ones
+- Custom plugin support - developers can add their own export hooks
+- Selective export - choose which plugins to include in your export
+- Automatic detection of active plugins with customizable export list
+- **Custom Plugin Options** - Add custom option names or values for any plugin (JSON Array or Object format)
+- **Single-Option Plugin Detection** - Automatically handles plugins with nested settings structures
+
+### 🌐 Remote File Support
+- Import from remote URLs - no need to download files manually
+- Support for presigned URLs (Amazon S3, etc.) via filters
+- Local file support - use files from your theme directory
+- Flexible file sources - mix and match remote and local files
+
+### 🚀 Smart Import Interface
+- Predefined demo imports - theme authors can pre-configure imports
+- Manual ZIP upload - import your own exported files
+- Tabbed interface - easy switching between predefined and manual imports
+- Visual preview - see demo imports before importing
+
+### ⚙️ Developer-Friendly
+- Comprehensive hooks and filters for customization
+- Before/after import actions for custom setup
+- WP-CLI commands for automated imports
+- Template function for theme integration
+- Full WordPress coding standards compliance
 
 ## 📋 Requirements
 
@@ -102,13 +125,7 @@ Use this format when you want to provide specific custom values:
 
 **Characteristics:**
 - Keys must be non-empty strings (option names)
-- Values can be any valid JSON type:
-  - Strings: `"text"`
-  - Numbers: `123`, `45.67`
-  - Booleans: `true`, `false`
-  - Arrays: `["item1", "item2"]`
-  - Objects: `{"key": "value"}`
-  - Null: `null`
+- Values can be any valid JSON type: strings, numbers, booleans, arrays, objects, null
 - Values are used directly during export (not fetched from database)
 - Perfect when you want to set specific custom values
 - Example: `{"my_custom_setting": "custom_value", "another_setting": {"key": "value"}}`
@@ -162,13 +179,13 @@ Setup Smart One Click Setup for your theme and your users will thank you for it!
 ```php
 use SOCS\ImportHelper;
 
-// Add multiple imports from URLs
+// Method 1: Add multiple imports from URLs (simplest)
 ImportHelper::add_multiple( array(
     'https://example.com/demos/demo1.zip',
     'https://example.com/demos/demo2.zip',
 ) );
 
-// Or add with full details
+// Method 2: Add with full details
 ImportHelper::add(
     'Demo Import 1',
     'https://example.com/demos/demo1.zip',
@@ -178,7 +195,7 @@ ImportHelper::add(
     'https://example.com/demo1'
 );
 
-// Or use the filter method
+// Method 3: Use the filter method
 add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
 	return array(
 		array(
@@ -192,106 +209,47 @@ add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
 } );
 
 // Display Smart Import with custom options
-socs_display_smart_import( array(
-    'wrapper_class'          => 'my-custom-class',
-    'show_header'            => false,
-    'show_sidebar'            => false,
-    'load_plugin_css'         => false,
-    'show_smart_import_tabs'  => false,
-    'show_file_upload_header' => false,
-    'show_intro_text'         => false,
-) );
-```
-
-## 🔧 Custom Plugin Options
-
-Starting from version 1.2.2, you can add custom plugin options for any selected plugin during export. This feature supports two JSON formats:
-
-### JSON Array Format
-
-Use this format when you want to fetch current values from the database:
-
-```json
-["option_name_1", "option_name_2", "another_option"]
-```
-
-**Characteristics:**
-- All items must be non-empty strings (option names)
-- Values are automatically fetched from the database during export
-- Perfect when you want current database values
-- Example: `["woocommerce_currency", "woocommerce_weight_unit"]`
-
-### JSON Object Format
-
-Use this format when you want to provide specific custom values:
-
-```json
-{
-  "option_name_1": "value1",
-  "option_name_2": {
-    "nested": "data",
-    "array": [1, 2, 3]
-  },
-  "option_name_3": 123,
-  "option_name_4": true,
-  "option_name_5": null
+if ( function_exists( 'socs_display_smart_import' ) ) {
+	socs_display_smart_import( array(
+		'wrapper_class'          => 'my-custom-class',
+		'show_header'            => false,
+		'show_sidebar'           => false,
+		'load_plugin_css'        => false,
+		'show_smart_import_tabs' => false,
+		'show_file_upload_header' => false,
+		'show_intro_text'        => false,
+	) );
 }
 ```
 
-**Characteristics:**
-- Keys must be non-empty strings (option names)
-- Values can be any valid JSON type:
-  - Strings: `"text"`
-  - Numbers: `123`, `45.67`
-  - Booleans: `true`, `false`
-  - Arrays: `["item1", "item2"]`
-  - Objects: `{"key": "value"}`
-  - Null: `null`
-- Values are used directly during export (not fetched from database)
-- Perfect when you want to set specific custom values
-- Example: `{"my_custom_setting": "custom_value", "another_setting": {"key": "value"}}`
+### Post-Import Setup
 
-### How to Use
+Automatically set menus, home page, and other settings after import:
 
-1. Go to **Appearance → Smart Export**
-2. Select the plugins you want to export
-3. Click the settings button (⚙️) next to any plugin
-4. Enter your custom options in the modal:
-   - Use JSON Array format for option names only
-   - Use JSON Object format for option names with values
-5. The plugin will validate your JSON and save it
-6. Export as usual - custom options will be included automatically
-
-### Plugin Settings Export File Format
-
-The exported `plugin-settings.json` file uses a nested JSON Object structure:
-
-```json
-{
-  "plugin_slug_1": {
-    "option_name_1": "value1",
-    "option_name_2": "value2"
-  },
-  "plugin_slug_2": {
-    "section_1": {
-      "name": "Section Name",
-      "fields": {
-        "field_1": "value1"
-      }
-    }
-  }
-}
+```php
+add_action( 'socs/after_import', function( $selected_import ) {
+	// Set menu locations
+	$main_menu = get_term_by( 'name', 'Main Menu', 'nav_menu' );
+	if ( $main_menu ) {
+		set_theme_mod( 'nav_menu_locations', array(
+			'primary' => $main_menu->term_id,
+		) );
+	}
+	
+	// Set front page
+	$front_page = get_page_by_title( 'Home' );
+	if ( $front_page ) {
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_on_front', $front_page->ID );
+	}
+	
+	// Set blog page
+	$blog_page = get_page_by_title( 'Blog' );
+	if ( $blog_page ) {
+		update_option( 'page_for_posts', $blog_page->ID );
+	}
+} );
 ```
-
-This format supports:
-- Simple key-value pairs
-- Nested structures for single-option plugins
-- Any valid JSON data types
-- Unicode characters
-
-## 🤝 Contributing
-
-Contributions are welcome! Please refer to our [contributing guidelines](https://github.com/buildbycj/smart-one-click-setup/blob/main/CONTRIBUTING.md) for more information.
 
 ## 📝 Changelog
 
@@ -306,7 +264,6 @@ Contributions are welcome! Please refer to our [contributing guidelines](https:/
   * Seamless integration with existing plugin settings export
 * **NEW: Single-Option Plugin Detection**
   * Automatic detection of plugins that store all settings in a single option (nested structure)
-  * Supports plugins like keystone-framework with sections/fields structure
   * Smart option name detection (checks database for existing options)
   * Generic detection works for any plugin with nested structures
 * **Enhanced Plugin Settings Import/Export**
@@ -370,6 +327,10 @@ Contributions are welcome! Please refer to our [contributing guidelines](https:/
 
 See [readme.txt](readme.txt) for the complete changelog.
 
+## 🤝 Contributing
+
+Contributions are welcome! Please refer to our [contributing guidelines](https://github.com/buildbycj/smart-one-click-setup/blob/main/CONTRIBUTING.md) for more information.
+
 ## 📄 License
 
 This plugin is licensed under the GPL v3 or later.
@@ -403,4 +364,3 @@ GNU General Public License for more details.
 ## 📞 Support
 
 For support, feature requests, or bug reports, please [open an issue](https://github.com/buildbycj/smart-one-click-setup/issues) on GitHub.
-

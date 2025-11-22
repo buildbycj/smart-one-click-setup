@@ -37,6 +37,10 @@ class ViewHelpers {
 		$theme      = wp_get_theme();
 		$screenshot = $theme->get_screenshot();
 		$name       = $theme->name;
+		$author     = $theme->get( 'Author' );
+		$author_uri = $theme->get( 'AuthorURI' );
+		$version    = $theme->get( 'Version' );
+		$description = $theme->get( 'Description' );
 
 		if ( isset( $selected ) ) {
 			$socs          = SmartOneClickSetup::get_instance();
@@ -55,7 +59,34 @@ class ViewHelpers {
 				<?php endif; ?>
 			</div>
 			<div class="socs__card-footer">
-				<h3><?php echo esc_html( $name ); ?></h3>
+				<div class="socs__theme-title-version">
+					<h3 class="socs__theme-name"><?php echo esc_html( $name ); ?></h3>
+					<?php if ( ! empty( $version ) ) : ?>
+						<span class="socs__theme-separator">---</span>
+						<span class="socs__theme-version">
+							<?php
+							/* translators: %s: Theme version number. */
+							printf( esc_html__( 'Version %s', 'smart-one-click-setup' ), esc_html( $version ) );
+							?>
+						</span>
+					<?php endif; ?>
+				</div>
+				<?php if ( ! empty( $author ) ) : ?>
+					<div class="socs__theme-author">
+						<?php if ( ! empty( $author_uri ) ) : ?>
+							<a href="<?php echo esc_url( $author_uri ); ?>" target="_blank" rel="noopener noreferrer">
+								<?php echo esc_html( $author ); ?>
+							</a>
+						<?php else : ?>
+							<?php echo esc_html( $author ); ?>
+						<?php endif; ?>
+					</div>
+				<?php endif; ?>
+				<?php if ( ! empty( $description ) ) : ?>
+					<div class="socs__theme-description">
+						<?php echo esc_html( $description ); ?>
+					</div>
+				<?php endif; ?>
 			</div>
 		</div>
 		<?php

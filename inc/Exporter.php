@@ -302,6 +302,35 @@ class Exporter {
 			'mods'  => $mods ? $mods : array(),
 		);
 
+		// Export WordPress reading options (home page settings).
+		// These are stored as options, not theme mods, but are important for customizer configuration.
+		$options = array();
+		
+		// Home page settings.
+		$show_on_front = get_option( 'show_on_front' );
+		if ( false !== $show_on_front ) {
+			$options['show_on_front'] = $show_on_front;
+			
+			// If front page is set to a static page, also export the page ID.
+			if ( 'page' === $show_on_front ) {
+				$page_on_front = get_option( 'page_on_front' );
+				if ( false !== $page_on_front && ! empty( $page_on_front ) ) {
+					$options['page_on_front'] = $page_on_front;
+				}
+			}
+		}
+		
+		// Blog page setting (posts page).
+		$page_for_posts = get_option( 'page_for_posts' );
+		if ( false !== $page_for_posts && ! empty( $page_for_posts ) ) {
+			$options['page_for_posts'] = $page_for_posts;
+		}
+
+		// Add options to data if we have any.
+		if ( ! empty( $options ) ) {
+			$data['options'] = $options;
+		}
+
 		// Allow filtering of customizer data.
 		$data = Helpers::apply_filters( 'socs/export_customizer_data', $data );
 
@@ -584,9 +613,63 @@ class Exporter {
 			'export_version' => defined( 'SOCS_VERSION' ) ? SOCS_VERSION : '1.0.0',
 		);
 		$info_file = $this->export_dir . 'export-info.json';
-		$info_result = Helpers::write_to_file( wp_json_encode( $info, JSON_PRETTY_PRINT ), $info_file );
+		$info_result = Helpers::write_to_file( wp_json_encode( $info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ), $info_file );
 		if ( ! is_wp_error( $info_result ) && file_exists( $info_file ) ) {
 			$zip->addFile( $info_file, 'export-info.json' );
+		}
+
+		// Add plugin info text file.
+		if ( ! function_exists( 'get_plugin_data' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$plugin_data = get_plugin_data( SOCS_PATH . 'smart-one-click-setup.php' );
+		
+		// Strip HTML tags and decode HTML entities from plugin data.
+		$plugin_name = ! empty( $plugin_data['Name'] ) ? wp_strip_all_tags( $plugin_data['Name'] ) : '';
+		$plugin_version = defined( 'SOCS_VERSION' ) ? SOCS_VERSION : ( ! empty( $plugin_data['Version'] ) ? wp_strip_all_tags( $plugin_data['Version'] ) : '' );
+		$plugin_uri = ! empty( $plugin_data['PluginURI'] ) ? esc_url_raw( $plugin_data['PluginURI'] ) : '';
+		$author = ! empty( $plugin_data['Author'] ) ? wp_strip_all_tags( html_entity_decode( $plugin_data['Author'], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) : '';
+		$author_uri = ! empty( $plugin_data['AuthorURI'] ) ? esc_url_raw( $plugin_data['AuthorURI'] ) : '';
+		$description = ! empty( $plugin_data['Description'] ) ? wp_strip_all_tags( html_entity_decode( $plugin_data['Description'], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) : '';
+		$license = ! empty( $plugin_data['License'] ) ? wp_strip_all_tags( $plugin_data['License'] ) : '';
+		$license_uri = ! empty( $plugin_data['LicenseURI'] ) ? esc_url_raw( $plugin_data['LicenseURI'] ) : '';
+		
+		$plugin_info = sprintf(
+			"This demo data zip is exported by Smart One Click Setup, Plugin details are below:\n" .
+			"\n\n\n" .
+			"SMART ONE CLICK SETUP - PLUGIN INFORMATION\n" .
+			"==========================================\n" .
+			"\n\n" .
+			"Plugin Name: %s\n" .
+			"Plugin Version: %s\n" .
+			"Plugin URI: %s\n" .
+			"Author: %s\n" .
+			"Author URI: %s\n" .
+			"\n\n" .
+			"Description: %s\n" .
+			"\n\n" .
+			"By %s.\n" .
+			"License: %s\n" .
+			"License URI: %s\n" .
+			"\n" .
+			"Export Date: %s\n" .
+			"Export Plugin Version: %s\n",
+			$plugin_name,
+			$plugin_version,
+			$plugin_uri,
+			$author,
+			$author_uri,
+			$description,
+			$author,
+			$license,
+			$license_uri,
+			current_time( 'mysql' ),
+			defined( 'SOCS_VERSION' ) ? SOCS_VERSION : ( ! empty( $plugin_data['Version'] ) ? wp_strip_all_tags( $plugin_data['Version'] ) : '' )
+		);
+		$plugin_info_file = $this->export_dir . 'info.txt';
+		$plugin_info_result = Helpers::write_to_file( $plugin_info, $plugin_info_file );
+		if ( ! is_wp_error( $plugin_info_result ) && file_exists( $plugin_info_file ) ) {
+			$zip->addFile( $plugin_info_file, 'info.txt' );
 		}
 
 		if ( ! $zip->close() ) {
@@ -594,9 +677,12 @@ class Exporter {
 			return new \WP_Error( 'zip_close_failed', esc_html__( 'Failed to close ZIP archive.', 'smart-one-click-setup' ) );
 		}
 
-		// Clean up info file.
+		// Clean up info files.
 		if ( file_exists( $info_file ) ) {
 			wp_delete_file( $info_file );
+		}
+		if ( file_exists( $plugin_info_file ) ) {
+			wp_delete_file( $plugin_info_file );
 		}
 
 		// Verify ZIP file was created.

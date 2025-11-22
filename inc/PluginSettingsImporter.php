@@ -246,30 +246,51 @@ class PluginSettingsImporter {
 			);
 		}
 
-		// Check if this is a single-option plugin (nested structure like keystone-framework).
+		// Check if this is a single-option plugin
 		// Single-option plugins store all settings in one option, not as individual options.
 		$single_option_name = self::detect_single_option_plugin( $plugin_slug, $settings );
 		if ( $single_option_name ) {
+			// Special handling: If settings contains the option name as a key (e.g., { "keystone_options": {...} }),
+			// extract the nested value as the actual option value.
+			$option_value = $settings;
+			
+			// If settings has exactly one key and that key matches the detected option name, extract the nested value.
+			if ( count( $settings ) === 1 ) {
+				$single_key = key( $settings );
+				$single_value = reset( $settings );
+				
+				// If the key matches the detected option name, use the nested value.
+				if ( $single_key === $single_option_name && is_array( $single_value ) ) {
+					$option_value = $single_value;
+				}
+			}
+			
 			// This is a single-option plugin - import the entire structure as one option.
 			$old_value = get_option( $single_option_name );
 			
 			// Allow filtering of the option value before import.
-			$settings = Helpers::apply_filters( 'socs/import_plugin_option_value', $settings, $single_option_name, $plugin_slug );
-			$settings = Helpers::apply_filters( 'socs/import_plugin_' . $plugin_slug . '_option_value', $settings, $single_option_name );
+			$option_value = Helpers::apply_filters( 'socs/import_plugin_option_value', $option_value, $single_option_name, $plugin_slug );
+			$option_value = Helpers::apply_filters( 'socs/import_plugin_' . $plugin_slug . '_option_value', $option_value, $single_option_name );
 			
-			// Update the single option with the entire settings structure.
-			$updated = update_option( $single_option_name, $settings );
+			// Force update by deleting and re-adding if value appears unchanged.
+			// This ensures the option is always updated, even if WordPress thinks it hasn't changed.
+			$updated = update_option( $single_option_name, $option_value );
 			
-			// Always trigger hooks and return success, even if value didn't change.
-			// This ensures the option is set and hooks are triggered.
+			// If update_option returned false (value unchanged), force update by deleting and re-adding.
+			if ( false === $updated && $old_value !== false ) {
+				delete_option( $single_option_name );
+				$updated = update_option( $single_option_name, $option_value );
+			}
+			
+			// Always trigger hooks to ensure plugins process the option update.
 			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-			do_action( 'update_option', $single_option_name, $old_value, $settings );
+			do_action( 'update_option', $single_option_name, $old_value, $option_value );
 			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-			do_action( 'update_option_' . $single_option_name, $old_value, $settings, $single_option_name );
+			do_action( 'update_option_' . $single_option_name, $old_value, $option_value, $single_option_name );
 			
 			// Trigger plugin-specific actions.
-			Helpers::do_action( 'socs/after_plugin_option_imported', $single_option_name, $settings, $old_value, $plugin_slug );
-			Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_option_imported', $single_option_name, $settings, $old_value );
+			Helpers::do_action( 'socs/after_plugin_option_imported', $single_option_name, $option_value, $old_value, $plugin_slug );
+			Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_option_imported', $single_option_name, $option_value, $old_value );
 			
 			// Trigger action after plugin settings are imported.
 			Helpers::do_action( 'socs/after_plugin_' . $plugin_slug . '_settings_imported', $settings );
@@ -362,7 +383,7 @@ class PluginSettingsImporter {
 	/**
 	 * Detect if a plugin uses a single option to store all settings.
 	 * 
-	 * This detects plugins like keystone-framework that store all settings
+	 * This detects plugins that store all settings
 	 * in a nested structure within a single option, rather than individual options.
 	 *
 	 * @param string $plugin_slug Plugin slug.
@@ -370,11 +391,52 @@ class PluginSettingsImporter {
 	 * @return string|false The single option name if detected, false otherwise.
 	 */
 	private static function detect_single_option_plugin( $plugin_slug, $settings ) {
+		// Special case: If settings has exactly one key and that key matches common single-option patterns,
+		// treat the value as the entire option data and the key as the option name.
+		// This handles cases like: { "keystone_options": {...} }
+		if ( count( $settings ) === 1 ) {
+			$single_key = key( $settings );
+			$single_value = reset( $settings );
+			
+			// Check if the key matches common single-option patterns.
+			if ( preg_match( '/_(options|settings|config)$/i', $single_key ) && is_array( $single_value ) && ! empty( $single_value ) ) {
+				// Check if the value has a nested structure (confirming it's a single-option plugin).
+				$has_nested_structure = false;
+				$has_fields_structure = false;
+				$has_name_icon_structure = false;
+				
+				foreach ( $single_value as $sub_key => $sub_value ) {
+					if ( is_array( $sub_value ) && ! empty( $sub_value ) ) {
+						$has_nested_structure = true;
+						// Check for common patterns.
+						if ( isset( $sub_value['fields'] ) && is_array( $sub_value['fields'] ) ) {
+							$has_fields_structure = true;
+						}
+						if ( isset( $sub_value['name'] ) && isset( $sub_value['icon'] ) ) {
+							$has_name_icon_structure = true;
+						}
+					}
+				}
+				
+				// If it has nested structure with fields/name-icon pattern, or has nested arrays,
+				// this is definitely a single-option plugin. Always return it for import.
+				if ( $has_nested_structure || $has_fields_structure || $has_name_icon_structure ) {
+					// Allow filter to override, but default to using the key as option name.
+					$detected_option = Helpers::apply_filters( 'socs/detect_single_option_plugin', $single_key, $plugin_slug, $settings );
+					if ( is_string( $detected_option ) && ! empty( $detected_option ) ) {
+						return $detected_option;
+					}
+					// Return the key as the option name (even if option doesn't exist yet).
+					return $single_key;
+				}
+			}
+		}
+		
 		// Check if settings have a nested structure (indicating single-option plugin).
 		// Single-option plugins typically have sections/fields structure.
 		$has_nested_structure = false;
 		$has_fields_structure = false;
-		$has_name_icon_structure = false; // Check for 'name' and 'icon' keys (keystone-framework pattern).
+		$has_name_icon_structure = false; // Check for 'name' and 'icon' keys.
 		
 		foreach ( $settings as $key => $value ) {
 			// Check if value is an array with 'fields' key (common pattern).
@@ -382,7 +444,7 @@ class PluginSettingsImporter {
 				$has_fields_structure = true;
 				$has_nested_structure = true;
 			}
-			// Check for keystone-framework pattern: sections with 'name' and 'icon' keys.
+			// Check for pattern: sections with 'name' and 'icon' keys.
 			if ( is_array( $value ) && isset( $value['name'] ) && isset( $value['icon'] ) ) {
 				$has_name_icon_structure = true;
 				$has_nested_structure = true;
@@ -405,6 +467,10 @@ class PluginSettingsImporter {
 				return $detected_option;
 			}
 			
+			// Extract base name from plugin slug (e.g., "keystone-framework" -> "keystone").
+			$slug_parts = explode( '-', $plugin_slug );
+			$base_name = ! empty( $slug_parts[0] ) ? $slug_parts[0] : $plugin_slug;
+			
 			// Common single-option patterns.
 			$possible_option_names = array(
 				$plugin_slug,
@@ -414,7 +480,20 @@ class PluginSettingsImporter {
 				str_replace( '-', '_', $plugin_slug ),
 				str_replace( '-', '_', $plugin_slug ) . '_options',
 				str_replace( '-', '_', $plugin_slug ) . '_settings',
+				$base_name . '_options', // e.g., "keystone_options" from "keystone-framework"
+				$base_name . '_settings',
+				$base_name . '_config',
 			);
+			
+			// Also check if any key in settings matches a single-option pattern.
+			foreach ( $settings as $key => $value ) {
+				if ( preg_match( '/_(options|settings|config)$/i', $key ) ) {
+					$possible_option_names[] = $key;
+				}
+			}
+			
+			// Remove duplicates and re-index.
+			$possible_option_names = array_values( array_unique( $possible_option_names ) );
 			
 			// Check which option name exists in the database (prefer existing option).
 			foreach ( $possible_option_names as $option_name ) {
@@ -429,6 +508,13 @@ class PluginSettingsImporter {
 				$is_correct_option = Helpers::apply_filters( 'socs/is_single_option_plugin', false, $plugin_slug, $option_name, $settings );
 				if ( $is_correct_option ) {
 					return $option_name;
+				}
+			}
+			
+			// If settings contains a key that matches single-option pattern, use that.
+			foreach ( $settings as $key => $value ) {
+				if ( preg_match( '/_(options|settings|config)$/i', $key ) && is_array( $value ) && ! empty( $value ) ) {
+					return $key;
 				}
 			}
 			
@@ -452,18 +538,18 @@ class PluginSettingsImporter {
 
 		if ( isset( $results['success'] ) || isset( $results['failed'] ) || isset( $results['skipped'] ) ) {
 			/* translators: %d: Number of plugins */
-			echo sprintf( esc_html__( 'Plugins imported: %d', 'smart-one-click-setup' ), $results['success'] ) . PHP_EOL;
+			echo esc_html( sprintf( __( 'Plugins imported: %d', 'smart-one-click-setup' ), absint( $results['success'] ) ) ) . PHP_EOL;
 			/* translators: %d: Number of plugins */
-			echo sprintf( esc_html__( 'Plugins failed: %d', 'smart-one-click-setup' ), $results['failed'] ) . PHP_EOL;
+			echo esc_html( sprintf( __( 'Plugins failed: %d', 'smart-one-click-setup' ), absint( $results['failed'] ) ) ) . PHP_EOL;
 			/* translators: %d: Number of plugins */
-			echo sprintf( esc_html__( 'Plugins skipped: %d', 'smart-one-click-setup' ), $results['skipped'] ) . PHP_EOL;
+			echo esc_html( sprintf( __( 'Plugins skipped: %d', 'smart-one-click-setup' ), absint( $results['skipped'] ) ) ) . PHP_EOL;
 			echo PHP_EOL;
 
 			// Show details if available.
 			if ( ! empty( $results['details'] ) ) {
 				foreach ( $results['details'] as $detail ) {
 					$status_icon = 'success' === $detail['status'] ? '✓' : ( 'failed' === $detail['status'] ? '✗' : '⊘' );
-					echo $status_icon . ' ' . esc_html( $detail['plugin'] ) . ' - ' . esc_html( $detail['message'] ) . PHP_EOL;
+					echo esc_html( $status_icon ) . ' ' . esc_html( $detail['plugin'] ) . ' - ' . esc_html( $detail['message'] ) . PHP_EOL;
 					
 					// Show imported options if available and in debug mode.
 					if ( 'success' === $detail['status'] && ! empty( $results['options'][ $detail['plugin'] ] ) ) {

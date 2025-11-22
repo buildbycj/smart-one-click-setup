@@ -1384,12 +1384,48 @@ class SmartOneClickSetup {
 				$class = $button['class'];
 			}
 
+			// Filter button label/text.
+			/**
+			 * Filter the label/text of a single button in the imported footer.
+			 *
+			 * @since 3.2.0
+			 *
+			 * @param string $label Button label/text.
+			 * @param array  $button Full button array.
+			 */
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+			$button_label = apply_filters( 'socs/import_successful_button_label', $button['label'], $button );
+			// Backward compatibility with pt- prefix.
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+			if ( has_filter( 'pt-socs/import_successful_button_label' ) ) {
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+				$button_label = apply_filters( 'pt-socs/import_successful_button_label', $button_label, $button );
+			}
+
+			// Filter button href/link.
+			/**
+			 * Filter the href/link of a single button in the imported footer.
+			 *
+			 * @since 3.2.0
+			 *
+			 * @param string $href Button href/link URL.
+			 * @param array  $button Full button array.
+			 */
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+			$button_href = apply_filters( 'socs/import_successful_button_href', $button['href'], $button );
+			// Backward compatibility with pt- prefix.
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+			if ( has_filter( 'pt-socs/import_successful_button_href' ) ) {
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+				$button_href = apply_filters( 'pt-socs/import_successful_button_href', $button_href, $button );
+			}
+
 			printf(
 				'<a href="%1$s" class="%2$s" target="%3$s">%4$s</a>',
-				esc_url( $button['href'] ),
+				esc_url( $button_href ),
 				esc_attr( $class ),
 				esc_attr( $target ),
-				esc_html( $button['label'] )
+				esc_html( $button_label )
 			);
 		}
 

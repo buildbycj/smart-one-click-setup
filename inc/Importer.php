@@ -129,6 +129,9 @@ class Importer {
 		// Check, if we need to send another AJAX request and set the importing author to the current user.
 		add_filter( 'wxr_importer.pre_process.post', array( $this, 'new_ajax_request_maybe' ) );
 
+		// Skip invalid media file types (ZIP files, etc.) during attachment import.
+		add_filter( 'wxr_importer.pre_process.post', array( $this, 'skip_invalid_media_attachments' ), 10, 1 );
+
 		// Disables generation of multiple image sizes (thumbnails) in the content import step.
 		if ( ! Helpers::apply_filters( 'socs/regenerate_thumbnails_in_content_import', true ) ) {
 			add_filter( 'intermediate_image_sizes_advanced', '__return_null' );
@@ -205,5 +208,89 @@ class Importer {
 		$data = array_merge( $this->socs->get_current_importer_data(), $this->get_importer_data() );
 
 		Helpers::set_socs_import_data_transient( $data );
+	}
+
+	/**
+	 * Skip invalid media file types (ZIP files, etc.) during attachment import.
+	 *
+	 * This prevents errors when ZIP files or other non-media files are referenced
+	 * as attachments in the WXR export file.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param array $data Post data to be imported.
+	 * @return array Empty array to skip, or original data to continue.
+	 */
+	public function skip_invalid_media_attachments( $data ) {
+		// Only process attachments.
+		if ( empty( $data ) || empty( $data['post_type'] ) || $data['post_type'] !== 'attachment' ) {
+			return $data;
+		}
+
+		// Get the attachment URL or GUID first to check filename.
+		$attachment_url = '';
+		if ( ! empty( $data['attachment_url'] ) ) {
+			$attachment_url = $data['attachment_url'];
+		} elseif ( ! empty( $data['guid'] ) ) {
+			$attachment_url = $data['guid'];
+		}
+
+		// Check filename pattern for log files if URL is available.
+		if ( ! empty( $attachment_url ) ) {
+			$filename = basename( wp_parse_url( $attachment_url, PHP_URL_PATH ) );
+			// Skip log files based on filename pattern: log_file_YYYY-MM-DD__HH-MM-SS.txt
+			if ( preg_match( '/log_file_\d{4}-\d{2}-\d{2}__\d{2}-\d{2}-\d{2}\.txt$/i', $filename ) ) {
+				// Return empty array to skip this log file attachment.
+				return array();
+			}
+		}
+
+		// Get the attachment title or post title to check for log files.
+		$attachment_title = '';
+		if ( ! empty( $data['post_title'] ) ) {
+			$attachment_title = $data['post_title'];
+		} elseif ( ! empty( $data['title'] ) ) {
+			$attachment_title = $data['title'];
+		}
+
+		// Skip log file attachments based on title pattern.
+		// Log files have patterns like: "log_file_YYYY-MM-DD__HH-MM-SS" or 
+		// "Smart One Click Setup - log_file_YYYY-MM-DD__HH-MM-SS" or
+		// "One Click Demo Import - log_file_YYYY-MM-DD__HH-MM-SS"
+		if ( ! empty( $attachment_title ) && (
+			preg_match( '/log_file_\d{4}-\d{2}-\d{2}__\d{2}-\d{2}-\d{2}/i', $attachment_title ) ||
+			preg_match( '/^(Smart One Click Setup|One Click Demo Import)\s*-\s*log_file_/i', $attachment_title )
+		) ) {
+			// Return empty array to skip this log file attachment.
+			return array();
+		}
+
+		// If no URL found, continue with import.
+		if ( empty( $attachment_url ) ) {
+			return $data;
+		}
+
+		// Get file extension from URL.
+		$file_extension = strtolower( pathinfo( wp_parse_url( $attachment_url, PHP_URL_PATH ), PATHINFO_EXTENSION ) );
+
+		// List of invalid file extensions that should not be imported as media.
+		$invalid_extensions = Helpers::apply_filters( 'socs/invalid_media_extensions', array(
+			'zip',
+			'rar',
+			'tar',
+			'gz',
+			'7z',
+			'exe',
+			'dmg',
+			'pkg',
+		) );
+
+		// Skip if file extension is in the invalid list.
+		if ( ! empty( $file_extension ) && in_array( $file_extension, $invalid_extensions, true ) ) {
+			// Return empty array to skip this attachment.
+			return array();
+		}
+
+		return $data;
 	}
 }

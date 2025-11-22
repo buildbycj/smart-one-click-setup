@@ -134,7 +134,7 @@ Helpers::do_action( 'socs/plugin_page_header' );
 									<div class="socs__card-content">
 										<label for="socs-export-elementor">
 											<div class="socs-icon-container">
-												<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/layout.svg' ); ?>" class="socs-icon--layout" alt="<?php esc_attr_e( 'Elementor export icon', 'smart-one-click-setup' ); ?>">
+												<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/elementor.svg' ); ?>" class="socs-icon--layout" alt="<?php esc_attr_e( 'Elementor export icon', 'smart-one-click-setup' ); ?>">
 											</div>
 											<h3><?php esc_html_e( 'Export Elementor Style Kit', 'smart-one-click-setup' ); ?></h3>
 											<p><?php esc_html_e( 'Export Elementor Style Kit style kit settings.', 'smart-one-click-setup' ); ?></p>
@@ -156,7 +156,7 @@ Helpers::do_action( 'socs/plugin_page_header' );
 									<div class="socs__card-content">
 										<label>
 											<div class="socs-icon-container">
-												<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/plugins.svg' ); ?>" class="socs-icon--plugins" alt="<?php esc_attr_e( 'Plugins export icon', 'smart-one-click-setup' ); ?>">
+												<img src="<?php echo esc_url( SOCS_URL . 'assets/images/icons/plugin-settings.svg' ); ?>" class="socs-icon--plugins" alt="<?php esc_attr_e( 'Plugins export icon', 'smart-one-click-setup' ); ?>">
 											</div>
 											<h3><?php esc_html_e( 'Export Plugin Settings', 'smart-one-click-setup' ); ?></h3>
 											<p><?php esc_html_e( 'Select which plugin settings to export.', 'smart-one-click-setup' ); ?></p>
@@ -240,7 +240,7 @@ Helpers::do_action( 'socs/plugin_page_header' );
 						<div class="socs__response js-socs-export-response"></div>
 					</div>
 					<div class="socs-exported-footer">
-						<a href="<?php echo esc_url( $this->get_plugin_settings_url() ); ?>" class="button button-primary button-hero js-socs-download-export">
+						<a href="<?php echo esc_url( admin_url( 'themes.php?page=socs-smart-export' ) ); ?>" class="button button-primary button-hero">
 							<?php esc_html_e( 'Go Back', 'smart-one-click-setup' ); ?>
 						</a>
 						<a href="#" class="button button-primary button-hero js-socs-download-export" target="_blank">

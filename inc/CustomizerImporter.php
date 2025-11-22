@@ -64,6 +64,7 @@ class CustomizerImporter {
 
 		// Setup internal vars.
 		$template = get_template();
+		$stylesheet = get_stylesheet();
 
 		// Make sure we have an import file.
 		if ( ! file_exists( $import_file_path ) ) {
@@ -86,14 +87,22 @@ class CustomizerImporter {
 
 		$data = unserialize( $raw , array( 'allowed_classes' => false ) );
 
-		// Data checks.
-		if ( ! is_array( $data ) && ( ! isset( $data['template'] ) || ! isset( $data['mods'] ) ) ) {
+		// Data checks - support both 'theme' and 'template' keys for backward compatibility.
+		if ( ! is_array( $data ) || ( ! isset( $data['theme'] ) && ! isset( $data['template'] ) ) || ! isset( $data['mods'] ) ) {
 			return new \WP_Error(
 				'customizer_import_data_error',
 				esc_html__( 'Error: The customizer import file is not in a correct format. Please make sure to use the correct customizer import file.', 'smart-one-click-setup' )
 			);
 		}
-		if ( $data['template'] !== $template ) {
+
+		// Get the theme from export data (support both 'theme' and 'template' keys).
+		$export_theme = isset( $data['theme'] ) ? $data['theme'] : ( isset( $data['template'] ) ? $data['template'] : '' );
+
+		// Check if theme matches (allow same theme or child theme).
+		// If export theme matches template, allow import (same parent theme or same theme).
+		// If export theme matches stylesheet, allow import (same theme).
+		// This allows importing customizer settings for the same theme or parent theme.
+		if ( empty( $export_theme ) || ( $export_theme !== $template && $export_theme !== $stylesheet ) ) {
 			return new \WP_Error(
 				'customizer_import_wrong_theme',
 				esc_html__( 'Error: The customizer import file is not suitable for current theme. You can only import customizer settings for the same theme or a child theme.', 'smart-one-click-setup' )
@@ -112,7 +121,35 @@ class CustomizerImporter {
 				require_once ABSPATH . 'wp-includes/class-wp-customize-setting.php';
 			}
 
+			// Get post ID mapping from content import (for remapping page IDs).
+			$post_id_mapping = array();
+			$socs = SmartOneClickSetup::get_instance();
+			if ( ! empty( $socs->importer ) && method_exists( $socs->importer, 'get_importer_data' ) ) {
+				$importer_data = $socs->importer->get_importer_data();
+				if ( ! empty( $importer_data['mapping']['post'] ) ) {
+					// Mapping format: array( 'old_id' => 'new_id' ).
+					$post_id_mapping = $importer_data['mapping']['post'];
+				}
+			}
+
 			foreach ( $data['options'] as $option_key => $option_value ) {
+				// Remap page IDs for home page settings.
+				if ( in_array( $option_key, array( 'page_on_front', 'page_for_posts' ), true ) && ! empty( $option_value ) ) {
+					// Check if we have a mapping for this page ID.
+					if ( ! empty( $post_id_mapping[ $option_value ] ) ) {
+						$option_value = $post_id_mapping[ $option_value ];
+					} else {
+						// If no mapping found, try to find the page by title/slug from the export.
+						// This is a fallback if the mapping isn't available.
+						// For now, we'll use the value as-is and log a warning if page doesn't exist.
+						$page_exists = get_post( $option_value );
+						if ( ! $page_exists || 'page' !== $page_exists->post_type ) {
+							// Page not found or wrong type, skip this option.
+							continue;
+						}
+					}
+				}
+
 				$option = new CustomizerOption( $wp_customize, $option_key, array(
 					'default'    => '',
 					'type'       => 'option',
