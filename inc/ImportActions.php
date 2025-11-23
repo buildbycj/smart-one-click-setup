@@ -29,6 +29,7 @@ class ImportActions {
 
 		// After full import action.
 		add_action( 'socs/after_all_import_execution', array( $this, 'after_import_action' ), 10, 3 );
+		add_action( 'socs/after_all_import_execution', array( $this, 'clear_elementor_cache' ), 20, 3 );
 
 		// Special widget import cases.
 		if ( Helpers::apply_filters( 'socs/enable_custom_menu_widget_ids_fix', true ) ) {
@@ -183,6 +184,43 @@ class ImportActions {
 	 */
 	public function after_import_action( $selected_import_files, $import_files, $selected_index ) {
 		$this->do_import_action( 'socs/after_import', $import_files[ $selected_index ] );
+	}
+
+	/**
+	 * Clear Elementor cache after all imports complete.
+	 * This ensures Elementor widgets (especially list widgets on blog/WooCommerce pages) display correctly.
+	 *
+	 * @param array $selected_import_files Actual selected import files (content, widgets, customizer, redux).
+	 * @param array $import_files          The filtered import files defined in `socs/import_files` filter.
+	 * @param int   $selected_index        Selected index of import.
+	 */
+	public function clear_elementor_cache( $selected_import_files, $import_files, $selected_index ) {
+		// Check if Elementor is active.
+		if ( ! class_exists( '\Elementor\Plugin' ) ) {
+			return;
+		}
+
+		$elementor = \Elementor\Plugin::$instance;
+
+		// Clear Elementor files cache.
+		if ( method_exists( $elementor->files_manager, 'clear_cache' ) ) {
+			$elementor->files_manager->clear_cache();
+		}
+
+		// Clear Elementor posts CSS cache (important for widgets to display correctly).
+		if ( method_exists( $elementor->posts_css_manager, 'clear_cache' ) ) {
+			$elementor->posts_css_manager->clear_cache();
+		}
+
+		// Clear Elementor kits cache.
+		if ( method_exists( $elementor->kits_manager, 'clear_cache' ) ) {
+			$elementor->kits_manager->clear_cache();
+		}
+
+		// Also try to clear Elementor's general cache if available.
+		if ( method_exists( $elementor, 'files_manager' ) && method_exists( $elementor->files_manager, 'regenerate_css_files' ) ) {
+			$elementor->files_manager->regenerate_css_files();
+		}
 	}
 
 
