@@ -739,6 +739,10 @@ class SmartOneClickSetup {
 		$api_base_url = Helpers::apply_filters( 'socs/demo_api_base_url', '' );
 		if ( ! empty( $api_base_url ) ) {
 			$api_result = ImportHelper::fetch_from_api();
+			// Log errors for debugging if WP_DEBUG is enabled.
+			if ( is_wp_error( $api_result ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error: ' . $api_result->get_error_message() );
+			}
 			// Note: Errors are silently ignored to prevent breaking the import page.
 			// Developers can check for errors if needed.
 		}

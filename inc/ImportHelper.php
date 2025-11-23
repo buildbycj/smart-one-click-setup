@@ -147,6 +147,34 @@ class ImportHelper {
 	}
 
 	/**
+	 * Clear API cache for a specific URL or all API caches.
+	 *
+	 * @param string $api_url Optional. Specific API URL to clear cache for. If empty, clears all API caches.
+	 * @return void
+	 */
+	public static function clear_api_cache( $api_url = '' ) {
+		if ( ! empty( $api_url ) ) {
+			$cache_key = 'socs_api_demos_' . md5( $api_url );
+			delete_transient( $cache_key );
+		} else {
+			// Clear all API caches by pattern (WordPress doesn't support pattern deletion, so we use a workaround).
+			global $wpdb;
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+					$wpdb->esc_like( '_transient_socs_api_demos_' ) . '%'
+				)
+			);
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+					$wpdb->esc_like( '_transient_timeout_socs_api_demos_' ) . '%'
+				)
+			);
+		}
+	}
+
+	/**
 	 * Fetch and register demos from a remote API based on theme name.
 	 *
 	 * This method:
@@ -195,14 +223,54 @@ class ImportHelper {
 		// Construct API URL.
 		$api_url = $base_url . '/' . $theme_name . '/' . $api_endpoint;
 
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Base URL: ' . $base_url );
+			error_log( 'SOCS API Debug - Theme Name: ' . $theme_name );
+			error_log( 'SOCS API Debug - API URL: ' . $api_url );
+		}
+
 		// Check cache first.
 		$cache_key = 'socs_api_demos_' . md5( $api_url );
 		$cached_demos = get_transient( $cache_key );
 
 		if ( false !== $cached_demos ) {
-			// Register cached demos.
-			self::register_demos_from_api_response( $cached_demos );
-			return true;
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Debug - Using cached demos. Count: ' . ( is_array( $cached_demos ) ? count( $cached_demos ) : 'N/A' ) );
+				if ( is_array( $cached_demos ) && ! empty( $cached_demos ) ) {
+					error_log( 'SOCS API Debug - Cached data preview: ' . wp_json_encode( array_slice( $cached_demos, 0, 1 ) ) );
+				}
+			}
+			// Validate cached data - check if it has valid structure and at least one valid demo.
+			$is_valid_cache = false;
+			if ( is_array( $cached_demos ) && ! empty( $cached_demos ) ) {
+				// Check if at least one demo has required fields (name and zip_url/zip_path).
+				foreach ( $cached_demos as $demo ) {
+					if ( is_array( $demo ) ) {
+						$name = isset( $demo['name'] ) ? $demo['name'] : '';
+						$zip_url = isset( $demo['zip_url'] ) ? $demo['zip_url'] : ( isset( $demo['url'] ) ? $demo['url'] : '' );
+						$zip_path = isset( $demo['zip_path'] ) ? $demo['zip_path'] : '';
+						if ( ! empty( $name ) && ( ! empty( $zip_url ) || ! empty( $zip_path ) ) ) {
+							$is_valid_cache = true;
+							break;
+						}
+					}
+				}
+			}
+
+			if ( ! $is_valid_cache ) {
+				// Debug logging if WP_DEBUG is enabled.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'SOCS API Debug - Cached data is invalid or has no valid demos, clearing cache and fetching fresh' );
+				}
+				delete_transient( $cache_key );
+				// Continue to fetch from API below.
+			} else {
+				// Register cached demos.
+				self::register_demos_from_api_response( $cached_demos );
+				return true;
+			}
 		}
 
 		// Fetch from API.
@@ -217,19 +285,32 @@ class ImportHelper {
 
 		// Check for errors.
 		if ( is_wp_error( $response ) ) {
+			$error_message = $response->get_error_message();
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error - Fetch failed: ' . $error_message );
+			}
 			return new \WP_Error(
 				'api_fetch_error',
 				sprintf(
 					/* translators: %1$s - API URL, %2$s - error message */
 					__( 'Failed to fetch demos from API: %1$s. Error: %2$s', 'smart-one-click-setup' ),
 					$api_url,
-					$response->get_error_message()
+					$error_message
 				)
 			);
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Response Code: ' . $response_code );
+		}
 		if ( 200 !== $response_code ) {
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error - Non-200 response code: ' . $response_code );
+			}
 			return new \WP_Error(
 				'api_response_error',
 				sprintf(
@@ -243,7 +324,16 @@ class ImportHelper {
 
 		// Get response body.
 		$body = wp_remote_retrieve_body( $response );
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Response body length: ' . strlen( $body ) );
+			error_log( 'SOCS API Debug - Response body preview: ' . substr( $body, 0, 200 ) );
+		}
 		if ( empty( $body ) ) {
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error - Empty response body' );
+			}
 			return new \WP_Error(
 				'empty_response',
 				sprintf(
@@ -257,15 +347,29 @@ class ImportHelper {
 		// Parse JSON.
 		$demos_data = json_decode( $body, true );
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			$json_error = json_last_error_msg();
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error - JSON parse failed: ' . $json_error );
+			}
 			return new \WP_Error(
 				'json_parse_error',
 				sprintf(
 					/* translators: %1$s - API URL, %2$s - JSON error message */
 					__( 'Failed to parse JSON from API: %1$s. Error: %2$s', 'smart-one-click-setup' ),
 					$api_url,
-					json_last_error_msg()
+					$json_error
 				)
 			);
+		}
+
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Parsed JSON type: ' . gettype( $demos_data ) );
+			if ( is_array( $demos_data ) ) {
+				error_log( 'SOCS API Debug - Parsed JSON keys: ' . implode( ', ', array_keys( $demos_data ) ) );
+				error_log( 'SOCS API Debug - Parsed JSON count: ' . count( $demos_data ) );
+			}
 		}
 
 		// Cache the response (1 hour default).
@@ -273,7 +377,14 @@ class ImportHelper {
 		set_transient( $cache_key, $demos_data, $cache_duration );
 
 		// Register demos from API response.
+		$demos_before = count( self::$imports );
 		self::register_demos_from_api_response( $demos_data );
+		$demos_after = count( self::$imports );
+
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Demos registered: ' . ( $demos_after - $demos_before ) . ' (Total: ' . $demos_after . ')' );
+		}
 
 		return true;
 	}
@@ -285,7 +396,15 @@ class ImportHelper {
 	 * @return void
 	 */
 	private static function register_demos_from_api_response( $demos_data ) {
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - register_demos_from_api_response called with type: ' . gettype( $demos_data ) );
+		}
 		if ( ! is_array( $demos_data ) ) {
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Error - register_demos_from_api_response: data is not an array' );
+			}
 			return;
 		}
 
@@ -307,9 +426,21 @@ class ImportHelper {
 			$demos = array( $demos_data );
 		}
 
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Found ' . count( $demos ) . ' demo(s) in response' );
+		}
+
 		// Register each demo.
-		foreach ( $demos as $demo ) {
+		$registered_count = 0;
+		$skipped_count = 0;
+		foreach ( $demos as $index => $demo ) {
 			if ( ! is_array( $demo ) ) {
+				// Debug logging if WP_DEBUG is enabled.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'SOCS API Debug - Skipping demo #' . $index . ': not an array' );
+				}
+				$skipped_count++;
 				continue;
 			}
 
@@ -325,11 +456,27 @@ class ImportHelper {
 
 			// Skip if no name or zip_url/zip_path.
 			if ( empty( $name ) || ( empty( $zip_url ) && empty( $zip_path ) ) ) {
+				// Debug logging if WP_DEBUG is enabled.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'SOCS API Debug - Skipping demo #' . $index . ': missing name or zip_url/zip_path. Name: ' . ( $name ?: 'empty' ) . ', zip_url: ' . ( $zip_url ?: 'empty' ) . ', zip_path: ' . ( $zip_path ?: 'empty' ) );
+				}
+				$skipped_count++;
 				continue;
 			}
 
 			// Register the demo.
 			self::add( $name, $zip_url, $zip_path, $description, $preview_image, $preview_url, $before_import, $after_import );
+			$registered_count++;
+
+			// Debug logging if WP_DEBUG is enabled.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'SOCS API Debug - Registered demo #' . $index . ': ' . $name );
+			}
+		}
+
+		// Debug logging if WP_DEBUG is enabled.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'SOCS API Debug - Registration complete. Registered: ' . $registered_count . ', Skipped: ' . $skipped_count );
 		}
 	}
 }

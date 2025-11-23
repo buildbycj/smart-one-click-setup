@@ -4,7 +4,7 @@ Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.6
+Stable tag: 1.2.7
 License: GPLv3 or later
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
@@ -483,6 +483,27 @@ Please visit this [docs page](https://github.com/buildbycj/smart-one-click-setup
 4. How the Recommended & Required theme plugins step looks like, just before the import step.
 
 == Changelog ==
+
+= 1.2.7 =
+
+*Release Date - 23 Nov 2025*
+
+* **API Demo Fetch Improvements**
+  * Added cache validation for API-fetched demos - automatically detects and clears invalid cache entries
+  * Enhanced error logging and debugging for API demo fetching process
+  * Improved demo registration with detailed debug information
+  * Better handling of malformed cached data
+  * Added `clear_api_cache()` method to ImportHelper class for manual cache clearing
+* **Enhanced Debugging**
+  * Added comprehensive debug logging for API response handling
+  * Better visibility into demo registration process
+  * Improved error messages for troubleshooting API issues
+
+= 1.2.6 =
+
+*Release Date - 23 Nov 2025*
+
+* Initial release of API demo fetching feature
 
 = 1.2.5 =
 
