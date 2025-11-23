@@ -4,7 +4,7 @@ Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv3 or later
 
 One-click import/export for demo content, widgets, customizer, plugin settings, and Elementor data. Perfect for theme authors and site migration.
@@ -483,6 +483,14 @@ Please visit this [docs page](https://github.com/buildbycj/smart-one-click-setup
 4. How the Recommended & Required theme plugins step looks like, just before the import step.
 
 == Changelog ==
+
+= 1.2.4 =
+
+*Release Date - 22 Nov 2025*
+
+* **Code Quality Improvements**
+  * Fixed WordPress.DB.SlowDBQuery.slow_db_query_tax_query PHPCS warnings in ElementorImporter class
+  * Added proper PHPCS ignore comments for necessary tax_query usage
 
 = 1.2.3 =
 
