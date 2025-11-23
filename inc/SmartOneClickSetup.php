@@ -1364,37 +1364,71 @@ class SmartOneClickSetup {
 	 */
 	public function get_import_successful_buttons_html() {
 
-		/**
-		 * Filter the buttons that are displayed on the successful import page.
-		 *
-		 * @since 3.2.0
-		 *
-		 * @param array $buttons {
-		 *     Array of buttons.
-		 *
-		 *     @type string $label  Button label.
-		 *     @type string $class  Button class.
-		 *     @type string $href   Button URL.
-		 *     @type string $target Button target. Can be `_blank`, `_parent`, `_top`. Default is `_self`.
-		 * }
-		 */
-		$buttons = Helpers::apply_filters(
-			'socs/import_successful_buttons',
-			[
-				[
-					'label'  => __( 'Theme Settings' , 'smart-one-click-setup' ),
-					'class'  => 'button button-primary button-hero',
-					'href'   => admin_url( 'customize.php' ),
-					'target' => '_blank',
-				],
-				[
-					'label'  => __( 'Visit Site' , 'smart-one-click-setup' ),
-					'class'  => 'button button-primary button-hero',
-					'href'   => get_home_url(),
-					'target' => '_blank',
-				],
-			]
-		);
+	/**
+	 * Filter the buttons that are displayed on the successful import page.
+	 *
+	 * @since 3.2.0
+	 *
+	 * @param array $buttons {
+	 *     Array of buttons.
+	 *
+	 *     @type string $id         Optional. Button ID for identifying and modifying specific buttons.
+	 *     @type string $label      Button label.
+	 *     @type string $class      Button class.
+	 *     @type string $href       Button URL.
+	 *     @type string $target     Button target. Can be `_blank`, `_parent`, `_top`. Default is `_self`.
+	 *     @type array  $attributes  Optional. Additional HTML attributes (e.g., data-* attributes for custom CSS targeting).
+	 * }
+	 */
+	$default_buttons = [
+		[
+			'id'     => 'theme-settings',
+			'label'  => __( 'Theme Settings' , 'smart-one-click-setup' ),
+			'class'  => 'button button-primary button-hero',
+			'href'   => admin_url( 'customize.php' ),
+			'target' => '_blank',
+		],
+		[
+			'id'     => 'visit-site',
+			'label'  => __( 'Visit Site' , 'smart-one-click-setup' ),
+			'class'  => 'button button-primary button-hero',
+			'href'   => get_home_url(),
+			'target' => '_blank',
+		],
+	];
+
+	$filtered_buttons = Helpers::apply_filters(
+		'socs/import_successful_buttons',
+		$default_buttons
+	);
+
+	// Process filtered buttons: update existing buttons by ID, add new buttons.
+	$buttons = array();
+	$button_index_by_id = array();
+
+	foreach ( $filtered_buttons as $button ) {
+		if ( ! is_array( $button ) ) {
+			continue;
+		}
+
+		// If button has an ID, check if we should update an existing button.
+		if ( ! empty( $button['id'] ) ) {
+			$button_id = sanitize_key( $button['id'] );
+			
+			// If this ID already exists, merge/update the existing button.
+			if ( isset( $button_index_by_id[ $button_id ] ) ) {
+				$existing_index = $button_index_by_id[ $button_id ];
+				$buttons[ $existing_index ] = array_merge( $buttons[ $existing_index ], $button );
+			} else {
+				// New button with ID, add it.
+				$buttons[] = $button;
+				$button_index_by_id[ $button_id ] = count( $buttons ) - 1;
+			}
+		} else {
+			// Button without ID, add it as a new button.
+			$buttons[] = $button;
+		}
+	}
 
 		if ( empty( $buttons ) || ! is_array( $buttons ) ) {
 			return '';
@@ -1416,9 +1450,27 @@ class SmartOneClickSetup {
 				$target = $button['target'];
 			}
 
-			$class = 'button button-primary button-hero';
+			$default_class = 'button button-primary button-hero';
 			if ( ! empty( $button['class'] ) ) {
 				$class = $button['class'];
+			} else {
+				$class = $default_class;
+			}
+			
+			// Always add success button identifier class.
+			if ( strpos( $class, 'socs-success-button' ) === false ) {
+				$class .= ' socs-success-button';
+			}
+
+			// Build additional attributes string.
+			$additional_attrs = '';
+			if ( ! empty( $button['attributes'] ) && is_array( $button['attributes'] ) ) {
+				foreach ( $button['attributes'] as $attr_name => $attr_value ) {
+					$attr_name = sanitize_key( $attr_name );
+					if ( ! empty( $attr_name ) ) {
+						$additional_attrs .= sprintf( ' %1$s="%2$s"', esc_attr( $attr_name ), esc_attr( $attr_value ) );
+					}
+				}
 			}
 
 			// Filter button label/text.
@@ -1458,10 +1510,11 @@ class SmartOneClickSetup {
 			}
 
 			printf(
-				'<a href="%1$s" class="%2$s" target="%3$s">%4$s</a>',
+				'<a href="%1$s" class="%2$s" target="%3$s"%4$s>%5$s</a>',
 				esc_url( $button_href ),
 				esc_attr( $class ),
 				esc_attr( $target ),
+				$additional_attrs,
 				esc_html( $button_label )
 			);
 		}

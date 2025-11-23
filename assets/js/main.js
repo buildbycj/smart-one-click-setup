@@ -707,11 +707,26 @@ jQuery( function ( $ ) {
 		});
 	});
 
+	// Success buttons handler - ensure they work correctly and don't get caught by other handlers.
+	$( document ).on( 'click', '.socs-success-button', function( event ) {
+		// Allow default link behavior for success buttons.
+		// Stop propagation to prevent other handlers from interfering.
+		event.stopPropagation();
+		// Don't prevent default - let the link work normally.
+		return true;
+	});
+
 	// Predefined import handler.
 	$( '.js-socs-use-predefined-import' ).on( 'click', function( event ) {
+		var $button = $( this );
+		
+		// Exclude success buttons from import handler.
+		if ( $button.hasClass( 'socs-success-button' ) ) {
+			return true;
+		}
+		
 		event.preventDefault();
 
-		var $button = $( this );
 		var importIndex = $button.data( 'import-index' );
 		var $importContent = $( '.js-socs-smart-import-content' );
 		var $importing = $( '.js-socs-importing' );
