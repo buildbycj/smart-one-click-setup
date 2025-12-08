@@ -16,7 +16,7 @@ Smart One Click Setup is a powerful WordPress plugin that simplifies importing a
 
 **📹 Watch our explainer video:**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/m85CcVUcclU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![Smart One Click Setup - Explainer Video](https://img.youtube.com/vi/m85CcVUcclU/maxresdefault.jpg)](https://www.youtube.com/watch?v=m85CcVUcclU)
 
 **What makes it special?**
 
