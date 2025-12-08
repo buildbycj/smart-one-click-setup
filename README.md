@@ -14,9 +14,7 @@ One-click import/export for demo content, widgets, customizer, plugin settings, 
 
 Smart One Click Setup is a powerful WordPress plugin that simplifies importing and exporting demo content, theme settings, and plugin configurations. Whether you're a theme author providing a seamless demo import experience or a developer migrating site configurations, this plugin has you covered.
 
-**📹 Watch our explainer video:**
-
-[![Smart One Click Setup - Explainer Video](https://img.youtube.com/vi/m85CcVUcclU/maxresdefault.jpg)](https://www.youtube.com/watch?v=m85CcVUcclU)
+**📹 Watch our explainer video:** [https://www.youtube.com/watch?v=m85CcVUcclU](https://www.youtube.com/watch?v=m85CcVUcclU)
 
 **What makes it special?**
 
