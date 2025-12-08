@@ -1,0 +1,121 @@
+<?php
+/**
+ * WXR importer class used in the Smart One Click Setup plugin.
+ * Needed to extend the WXR_Importer class to get/set the importer protected variables,
+ * for use in the multiple AJAX calls.
+ *
+ * @package smartocs
+ */
+
+namespace SMARTOCS;
+
+class WXRImporter extends CustomWXRImporter {
+	/**
+	 * Constructor method.
+	 *
+	 * @param array $options Importer options.
+	 */
+	public function __construct( $options = array() ) {
+		parent::__construct( $options );
+
+		// Set current user to $mapping variable.
+		// Fixes the [WARNING] Could not find the author for ... log warning messages.
+		$current_user_obj = wp_get_current_user();
+		$this->mapping['user_slug'][ $current_user_obj->user_login ] = $current_user_obj->ID;
+
+		// WooCommerce product attributes registration.
+		if ( class_exists( 'WooCommerce' ) ) {
+			add_filter( 'wxr_importer.pre_process.term', array( $this, 'woocommerce_product_attributes_registration' ), 10, 1 );
+		}
+	}
+
+	/**
+	 * Get all protected variables from the WXR_Importer needed for continuing the import.
+	 */
+	public function get_importer_data() {
+		return array(
+			'mapping'            => $this->mapping,
+			'requires_remapping' => $this->requires_remapping,
+			'exists'             => $this->exists,
+			'user_slug_override' => $this->user_slug_override,
+			'url_remap'          => $this->url_remap,
+			'featured_images'    => $this->featured_images,
+		);
+	}
+
+	/**
+	 * Sets all protected variables from the WXR_Importer needed for continuing the import.
+	 *
+	 * @param array $data with set variables.
+	 */
+	public function set_importer_data( $data ) {
+		$this->mapping            = empty( $data['mapping'] ) ? array() : $data['mapping'];
+		$this->requires_remapping = empty( $data['requires_remapping'] ) ? array() : $data['requires_remapping'];
+		$this->exists             = empty( $data['exists'] ) ? array() : $data['exists'];
+		$this->user_slug_override = empty( $data['user_slug_override'] ) ? array() : $data['user_slug_override'];
+		$this->url_remap          = empty( $data['url_remap'] ) ? array() : $data['url_remap'];
+		$this->featured_images    = empty( $data['featured_images'] ) ? array() : $data['featured_images'];
+	}
+
+	/**
+	 * Hook into the pre-process term filter of the content import and register the
+	 * custom WooCommerce product attributes, so that the terms can then be imported normally.
+	 *
+	 * This should probably be removed once the WP importer 2.0 support is added in WooCommerce.
+	 *
+	 * Fixes: [WARNING] Failed to import pa_size L warnings in content import.
+	 *
+	 * Github issue: https://github.com/buildbycj/smart-one-click-setup/issues/71
+	 *
+	 * @param  array $date The term data to import.
+	 * @return array       The unchanged term data.
+	 */
+	public function woocommerce_product_attributes_registration( $data ) {
+		global $wpdb;
+
+		if ( strstr( $data['taxonomy'], 'pa_' ) ) {
+			if ( ! taxonomy_exists( $data['taxonomy'] ) ) {
+				$attribute_name = wc_sanitize_taxonomy_name( str_replace( 'pa_', '', $data['taxonomy'] ) );
+
+				// Create the taxonomy
+				if ( ! in_array( $attribute_name, wc_get_attribute_taxonomies() ) ) {
+					$attribute = array(
+						'attribute_label'   => $attribute_name,
+						'attribute_name'    => $attribute_name,
+						'attribute_type'    => 'select',
+						'attribute_orderby' => 'menu_order',
+						'attribute_public'  => 0
+					);
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+					$wpdb->insert( $wpdb->prefix . 'woocommerce_attribute_taxonomies', $attribute );
+					delete_transient( 'wc_attribute_taxonomies' );
+				}
+
+				// Register the taxonomy now so that the import works!
+				// 
+				// IMPORTANT: 'woocommerce_taxonomy_objects_*' and 'woocommerce_taxonomy_args_*' are WooCommerce CORE filter names.
+				// These are WooCommerce's documented filter hooks for product attribute taxonomies.
+				// Using a custom prefix here would break WooCommerce functionality - WooCommerce would not recognize the filters.
+				// 
+				// It registers WooCommerce product attribute taxonomies during import so terms can be imported normally.
+				// 
+				// Plugin-specific WooCommerce data uses a unique plugin prefix (e.g., 'smartocs_wc_data').
+				// But WooCommerce's own filter hooks MUST use WooCommerce's core filter names.
+				register_taxonomy(
+					$data['taxonomy'],
+					// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce core filter 'woocommerce_taxonomy_objects_{$taxonomy}', not a plugin hook. WooCommerce only recognizes this filter name format.
+					apply_filters( 'woocommerce_taxonomy_objects_' . $data['taxonomy'], array( 'product' ) ),
+					// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce core filter 'woocommerce_taxonomy_args_{$taxonomy}', not a plugin hook. WooCommerce only recognizes this filter name format.
+					apply_filters( 'woocommerce_taxonomy_args_' . $data['taxonomy'], array(
+						'hierarchical' => true,
+						'show_ui'      => false,
+						'query_var'    => true,
+						'rewrite'      => false,
+					) )
+				);
+			}
+		}
+
+		return $data;
+	}
+}

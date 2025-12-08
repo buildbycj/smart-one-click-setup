@@ -1,0 +1,16 @@
+{
+	"name": "smart-one-click-setup/composer",
+	"description": "Composer dependencies for Smart One Click Setup WordPress plugin",
+	"type": "wordpress-plugin",
+	"require": {
+		"php": ">=7.4"
+	},
+	"autoload": {
+		"psr-4": {
+			"SMARTOCS\\": "inc/",
+			"BuildByCj\\WPContentImporter2\\": "vendor/buildbycj/wp-content-importer-v2/src/",
+			"BuildByCj\\WPContentExporter2\\": "vendor/buildbycj/wp-content-exporter-v2/src/"
+		}
+	}
+}
+

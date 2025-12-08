@@ -1,0 +1,809 @@
+================================================================================
+SMART ONE CLICK SETUP - ALL DEVELOPER HOOKS, INTEGRATION CODES & FILTERS
+================================================================================
+
+IMPORTANT: PLUGIN SAFETY CHECKS
+--------------------------------------------------------------------------------
+
+When using hooks and functions from this plugin in your theme or plugin, always
+ensure compatibility when Smart One Click Setup is not active/installed:
+
+1. ✓ NATIVE WORDPRESS HOOKS (SAFE):
+   - Using add_action() or add_filter() with plugin hooks is SAFE
+   - They will be silently ignored if plugin isn't active
+   - Example: add_filter( 'socs/import_files', 'callback' );
+
+2. ✓ TEMPLATE FUNCTIONS (REQUIRES CHECK):
+   - Always check function_exists() before calling template functions
+   - Example: if ( function_exists( 'socs_display_smart_import' ) ) { ... }
+
+3. ✓ PLUGIN CLASSES (REQUIRES CHECK):
+   - Always check class_exists() before using plugin classes
+   - Example: if ( class_exists( 'SOCS\ImportHelper' ) ) { ... }
+
+4. ✓ RECOMMENDED PATTERN:
+   - Wrap integration code in plugin existence checks
+   - if ( class_exists( 'SOCS\SmartOneClickSetup' ) ) { ... }
+
+See DEVELOPER_BEST_PRACTICES.txt for detailed safety guidelines.
+
+================================================================================
+ACTION HOOKS
+================================================================================
+
+// ✓ SAFE - Native WordPress hooks are safe (silently ignored if plugin isn't active)
+
+socs/before_content_import
+add_action( 'socs/before_content_import', function() {
+	// Optional: Check if plugin is still active
+	if ( ! class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+		return;
+	}
+	delete_transient( 'my_theme_demo_cache' );
+	error_log( 'Smart One Click Setup: Import started at ' . current_time( 'mysql' ) );
+} );
+
+socs/after_import
+add_action( 'socs/after_import', function( $selected_import ) {
+	// Optional: Check if plugin is still active
+	if ( ! class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+		return;
+	}
+	
+	$demo_name = isset( $selected_import['import_file_name'] ) 
+		? $selected_import['import_file_name'] 
+		: '';
+	
+	$main_menu = get_term_by( 'name', 'Main Menu', 'nav_menu' );
+	if ( $main_menu ) {
+		set_theme_mod( 'nav_menu_locations', array(
+			'primary' => $main_menu->term_id,
+			'footer'  => $main_menu->term_id,
+		) );
+	}
+	
+	$front_page = get_page_by_title( 'Home' );
+	if ( $front_page ) {
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_on_front', $front_page->ID );
+	}
+	
+	$blog_page = get_page_by_title( 'Blog' );
+	if ( $blog_page ) {
+		update_option( 'page_for_posts', $blog_page->ID );
+	}
+	
+	if ( 'Business Demo' === $demo_name ) {
+		$business_menu = get_term_by( 'name', 'Business Menu', 'nav_menu' );
+		if ( $business_menu ) {
+			set_theme_mod( 'nav_menu_locations', array(
+				'primary' => $business_menu->term_id,
+			) );
+		}
+		set_theme_mod( 'custom_logo', attachment_url_to_postid( 
+			get_template_directory_uri() . '/assets/images/logo-business.png' 
+		) );
+	} elseif ( 'Portfolio Demo' === $demo_name ) {
+		$portfolio_menu = get_term_by( 'name', 'Portfolio Menu', 'nav_menu' );
+		if ( $portfolio_menu ) {
+			set_theme_mod( 'nav_menu_locations', array(
+				'primary' => $portfolio_menu->term_id,
+			) );
+		}
+	}
+	
+	flush_rewrite_rules();
+	
+	if ( function_exists( 'wp_cache_flush' ) ) {
+		wp_cache_flush();
+	}
+} );
+
+socs/widget_importer_before_widgets_import
+add_action( 'socs/widget_importer_before_widgets_import', function() {
+	$sidebars_widgets = get_option( 'sidebars_widgets', array() );
+	foreach ( $sidebars_widgets as $sidebar => $widgets ) {
+		if ( 'wp_inactive_widgets' !== $sidebar && 'array_version' !== $sidebar ) {
+			$sidebars_widgets[ $sidebar ] = array();
+		}
+	}
+	update_option( 'sidebars_widgets', $sidebars_widgets );
+} );
+
+socs/widget_importer_after_widgets_import
+add_action( 'socs/widget_importer_after_widgets_import', function() {
+	error_log( 'Smart One Click Setup: Widgets imported successfully' );
+} );
+
+socs/plugin_page_header
+add_action( 'socs/plugin_page_header', function() {
+	echo '<div class="notice notice-info"><p>Custom header content goes here.</p></div>';
+} );
+
+socs/plugin_page_footer
+add_action( 'socs/plugin_page_footer', function() {
+	echo '<div class="notice notice-info"><p>Custom footer content goes here.</p></div>';
+} );
+
+================================================================================
+FILTER HOOKS - IMPORT CONFIGURATION
+================================================================================
+
+// ✓ SAFE - Native WordPress hooks are safe (silently ignored if plugin isn't active)
+
+socs/predefined_import_files
+add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
+	// Optional: Check if plugin is still active
+	if ( ! class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+		return $predefined_imports;
+	}
+	
+	$theme_dir = get_template_directory();
+	$theme_uri = get_template_directory_uri();
+	
+	return array(
+		array(
+			'name'          => 'Business Demo',
+			'description'   => 'Perfect for business websites with modern design',
+			'preview_image' => $theme_uri . '/demos/previews/business.jpg',
+			'preview_url'   => 'https://demo.example.com/business',
+			'zip_url'       => 'https://example.com/demos/business.zip',
+		),
+		array(
+			'name'          => 'Portfolio Demo',
+			'description'   => 'Ideal for creative professionals and agencies',
+			'preview_image' => $theme_uri . '/demos/previews/portfolio.jpg',
+			'preview_url'   => 'https://demo.example.com/portfolio',
+			'zip_path'      => $theme_dir . '/demos/portfolio.zip',
+		),
+		array(
+			'name'          => 'E-Commerce Demo',
+			'description'   => 'Perfect for online stores',
+			'preview_image' => $theme_uri . '/demos/previews/shop.jpg',
+			'preview_url'   => 'https://demo.example.com/shop',
+			'zip_url'       => 'https://example.com/demos/shop.zip',
+		),
+	);
+} );
+
+socs/import_files
+add_filter( 'socs/import_files', function( $import_files ) {
+	return $import_files;
+} );
+
+socs/pre_download_import_files
+add_filter( 'socs/pre_download_import_files', function( $import_file_info ) {
+	if ( isset( $import_file_info['import_file_url'] ) ) {
+		$import_file_info['import_file_url'] = add_query_arg(
+			array(
+				'auth_token' => 'your_token_here',
+			),
+			$import_file_info['import_file_url']
+		);
+	}
+	return $import_file_info;
+} );
+
+================================================================================
+FILTER HOOKS - IMPORT OPTIONS
+================================================================================
+
+socs/importer_options
+add_filter( 'socs/importer_options', function( $options ) {
+	$options['fetch_attachments'] = true;
+	$options['authors'] = array(
+		'admin' => get_current_user_id(),
+	);
+	return $options;
+} );
+
+socs/import_memory_limit
+add_filter( 'socs/import_memory_limit', function( $memory_limit ) {
+	return '512M';
+} );
+
+socs/set_time_limit_for_demo_data_import
+add_filter( 'socs/set_time_limit_for_demo_data_import', function( $time_limit ) {
+	return 600;
+} );
+
+socs/time_for_one_ajax_call
+add_filter( 'socs/time_for_one_ajax_call', function( $time ) {
+	return 30;
+} );
+
+socs/regenerate_thumbnails_in_content_import
+add_filter( 'socs/regenerate_thumbnails_in_content_import', '__return_false' );
+
+================================================================================
+FILTER HOOKS - UI AND DISPLAY
+================================================================================
+
+socs/plugin_page_setup
+add_filter( 'socs/plugin_page_setup', function( $default_settings ) {
+	$default_settings['parent_slug'] = 'themes.php';
+	$default_settings['page_title']  = esc_html__( 'Import Demo Content', 'textdomain' );
+	$default_settings['menu_title']  = esc_html__( 'Import Demo', 'textdomain' );
+	$default_settings['capability']  = 'import';
+	$default_settings['menu_slug']   = 'my-theme-import';
+	return $default_settings;
+} );
+
+socs/plugin_page_title
+add_filter( 'socs/plugin_page_title', function( $plugin_title ) {
+	return esc_html__( 'Custom Import Title', 'textdomain' );
+} );
+
+socs/plugin_page_display_callback_function
+add_filter( 'socs/plugin_page_display_callback_function', function( $callback ) {
+	return $callback;
+} );
+
+socs/export_page_display_callback_function
+add_filter( 'socs/export_page_display_callback_function', function( $callback ) {
+	return $callback;
+} );
+
+socs/plugin_intro_text
+add_filter( 'socs/plugin_intro_text', function( $default_text ) {
+	$custom_text = '';
+	$custom_text .= '<h2>' . esc_html__( 'Welcome to Our Theme!', 'textdomain' ) . '</h2>';
+	$custom_text .= '<p>' . esc_html__( 'Import one of our pre-built demos to get started quickly.', 'textdomain' ) . '</p>';
+	return $custom_text . $default_text;
+} );
+
+socs/disable_admin_menu
+add_filter( 'socs/disable_admin_menu', '__return_true' );
+
+socs/show_export_link
+add_filter( 'socs/show_export_link', '__return_false' );
+
+socs/show_smart_import_tabs
+add_filter( 'socs/show_smart_import_tabs', function( $show_tabs ) {
+	if ( is_page( 'custom-import-page' ) ) {
+		return false;
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return false;
+	}
+	return $show_tabs;
+} );
+
+socs/show_file_upload_header
+add_filter( 'socs/show_file_upload_header', function( $show ) {
+	if ( is_page( 'custom-page' ) ) {
+		return false;
+	}
+	return $show;
+} );
+
+socs/show_intro_text
+add_filter( 'socs/show_intro_text', '__return_false' );
+
+socs/intro_description_text
+add_filter( 'socs/intro_description_text', function( $description ) {
+	return 'Your custom description text here.';
+} );
+
+socs/intro_description_text - Append
+add_filter( 'socs/intro_description_text', function( $description ) {
+	return $description . ' ' . 'Additional information can be added here.';
+} );
+
+socs/intro_description_text - Conditional
+add_filter( 'socs/intro_description_text', function( $description ) {
+	if ( is_page( 'custom-import-page' ) ) {
+		return 'Custom description for this specific page.';
+	}
+	return $description;
+} );
+
+socs/intro_description_text - HTML
+add_filter( 'socs/intro_description_text', function( $description ) {
+	return '<strong>Bold text</strong> and <em>italic text</em> are allowed.';
+} );
+
+socs/import_successful_buttons
+add_filter( 'socs/import_successful_buttons', function( $buttons ) {
+	$buttons[] = array(
+		'label'  => esc_html__( 'View Site', 'textdomain' ),
+		'class'  => 'button button-primary',
+		'href'   => home_url(),
+		'target' => '_blank',
+	);
+	$buttons[] = array(
+		'label'  => esc_html__( 'Customize Theme', 'textdomain' ),
+		'class'  => 'button button-secondary',
+		'href'   => admin_url( 'customize.php' ),
+		'target' => '_self',
+	);
+	return $buttons;
+} );
+
+socs/template_smart_import_args
+add_filter( 'socs/template_smart_import_args', function( $args ) {
+	$args['show_header'] = false;
+	$args['show_sidebar'] = false;
+	$args['wrapper_class'] = 'my-custom-wrapper-class';
+	return $args;
+} );
+
+socs/template_smart_import_wrapper_classes
+add_filter( 'socs/template_smart_import_wrapper_classes', function( $wrapper_classes, $args ) {
+	return $wrapper_classes . ' additional-class-here';
+} );
+
+socs/template_smart_import_output
+add_filter( 'socs/template_smart_import_output', function( $output, $args ) {
+	return '<div class="custom-wrapper">' . $output . '</div>';
+} );
+
+================================================================================
+FILTER HOOKS - FILE HANDLING
+================================================================================
+
+socs/timeout_for_downloading_import_file
+add_filter( 'socs/timeout_for_downloading_import_file', function( $timeout ) {
+	return 60;
+} );
+
+socs/message_after_file_fetching_error
+add_filter( 'socs/message_after_file_fetching_error', function( $message ) {
+	return esc_html__( 'Custom error message when file fetching fails.', 'textdomain' );
+} );
+
+socs/upload_file_path
+add_filter( 'socs/upload_file_path', function( $path ) {
+	return trailingslashit( $path ) . 'custom-folder/';
+} );
+
+socs/upload_file_url
+add_filter( 'socs/upload_file_url', function( $url ) {
+	return trailingslashit( $url ) . 'custom-folder/';
+} );
+
+socs/file_mimes
+add_filter( 'socs/file_mimes', function( $mimes ) {
+	$mimes['zip'] = 'application/zip';
+	return $mimes;
+} );
+
+socs/date_format_for_file_names
+add_filter( 'socs/date_format_for_file_names', function( $format ) {
+	return 'Y-m-d_H-i-s';
+} );
+
+================================================================================
+FILTER HOOKS - FILE NAME PREFIX/SUFFIX
+================================================================================
+
+socs/downloaded_content_file_prefix
+add_filter( 'socs/downloaded_content_file_prefix', function( $prefix ) {
+	return 'my-theme-content-';
+} );
+
+socs/downloaded_content_file_suffix_and_file_extension
+add_filter( 'socs/downloaded_content_file_suffix_and_file_extension', function( $suffix ) {
+	return '.xml';
+} );
+
+socs/downloaded_widgets_file_prefix
+add_filter( 'socs/downloaded_widgets_file_prefix', function( $prefix ) {
+	return 'my-theme-widgets-';
+} );
+
+socs/downloaded_widgets_file_suffix_and_file_extension
+add_filter( 'socs/downloaded_widgets_file_suffix_and_file_extension', function( $suffix ) {
+	return '.json';
+} );
+
+socs/downloaded_customizer_file_prefix
+add_filter( 'socs/downloaded_customizer_file_prefix', function( $prefix ) {
+	return 'my-theme-customizer-';
+} );
+
+socs/downloaded_customizer_file_suffix_and_file_extension
+add_filter( 'socs/downloaded_customizer_file_suffix_and_file_extension', function( $suffix ) {
+	return '.dat';
+} );
+
+socs/downloaded_redux_file_prefix
+add_filter( 'socs/downloaded_redux_file_prefix', function( $prefix ) {
+	return 'my-theme-redux-';
+} );
+
+socs/downloaded_redux_file_suffix_and_file_extension
+add_filter( 'socs/downloaded_redux_file_suffix_and_file_extension', function( $suffix ) {
+	return '.json';
+} );
+
+socs/downloaded_wpforms_file_prefix
+add_filter( 'socs/downloaded_wpforms_file_prefix', function( $prefix ) {
+	return 'my-theme-wpforms-';
+} );
+
+socs/downloaded_wpforms_file_suffix_and_file_extension
+add_filter( 'socs/downloaded_wpforms_file_suffix_and_file_extension', function( $suffix ) {
+	return '.json';
+} );
+
+socs/log_file_prefix
+add_filter( 'socs/log_file_prefix', function( $prefix ) {
+	return 'my-theme-log-';
+} );
+
+socs/log_file_suffix_and_file_extension
+add_filter( 'socs/log_file_suffix_and_file_extension', function( $suffix ) {
+	return '.txt';
+} );
+
+socs/attachment_prefix
+add_filter( 'socs/attachment_prefix', function( $prefix ) {
+	return 'My Theme - ';
+} );
+
+================================================================================
+FILTER HOOKS - REMOTE API
+================================================================================
+
+socs/demo_api_base_url
+add_filter( 'socs/demo_api_base_url', function() {
+	return 'https://yourdomain.com/api';
+} );
+
+socs/demo_api_timeout
+add_filter( 'socs/demo_api_timeout', function() {
+	return 30;
+} );
+
+socs/demo_api_cache_duration
+add_filter( 'socs/demo_api_cache_duration', function() {
+	return 2 * HOUR_IN_SECONDS;
+} );
+
+socs/demo_api_sslverify
+add_filter( 'socs/demo_api_sslverify', function() {
+	return false;
+} );
+
+================================================================================
+FILTER HOOKS - WIDGET IMPORT
+================================================================================
+
+socs/before_widgets_import_data
+add_filter( 'socs/before_widgets_import_data', function( $data ) {
+	if ( isset( $data['widgets'] ) && is_array( $data['widgets'] ) ) {
+		foreach ( $data['widgets'] as $key => $widget ) {
+		}
+	}
+	return $data;
+} );
+
+socs/widget_settings
+add_filter( 'socs/widget_settings', function( $widget ) {
+	if ( isset( $widget->settings ) ) {
+	}
+	return $widget;
+} );
+
+socs/widget_settings_array
+add_filter( 'socs/widget_settings_array', function( $widget ) {
+	if ( isset( $widget['settings'] ) ) {
+	}
+	return $widget;
+} );
+
+socs/widget_import_results
+add_filter( 'socs/widget_import_results', function( $results ) {
+	return $results;
+} );
+
+socs/available_widgets
+add_filter( 'socs/available_widgets', function( $available_widgets ) {
+	return $available_widgets;
+} );
+
+socs/enable_custom_menu_widget_ids_fix
+add_filter( 'socs/enable_custom_menu_widget_ids_fix', '__return_false' );
+
+================================================================================
+FILTER HOOKS - CUSTOMIZER IMPORT
+================================================================================
+
+socs/enable_wp_customize_save_hooks
+add_filter( 'socs/enable_wp_customize_save_hooks', '__return_true' );
+
+socs/customizer_import_images
+add_filter( 'socs/customizer_import_images', '__return_false' );
+
+================================================================================
+FILTER HOOKS - EXPORT
+================================================================================
+
+socs/export_options
+add_filter( 'socs/export_options', function( $export_options ) {
+	return $export_options;
+} );
+
+socs/export_content_args
+add_filter( 'socs/export_content_args', function( $args ) {
+	$args['status'] = 'publish';
+	return $args;
+} );
+
+socs/export_widget_data
+add_filter( 'socs/export_widget_data', function( $widget_data ) {
+	return $widget_data;
+} );
+
+socs/export_customizer_data
+add_filter( 'socs/export_customizer_data', function( $data ) {
+	unset( $data['nav_menu_locations'] );
+	return $data;
+} );
+
+socs/export_plugin_list
+add_filter( 'socs/export_plugin_list', function( $plugin_list ) {
+	$plugin_list[] = 'my-custom-plugin/my-custom-plugin.php';
+	return $plugin_list;
+} );
+
+socs/export_plugin_settings_data
+add_filter( 'socs/export_plugin_settings_data', function( $plugin_settings ) {
+	return $plugin_settings;
+} );
+
+socs/export_plugin_{$plugin_slug}_settings
+add_filter( 'socs/export_plugin_woocommerce_settings', function( $settings ) {
+	return $settings;
+} );
+
+socs/export_elementor_data
+add_filter( 'socs/export_elementor_data', function( $elementor_data ) {
+	return $elementor_data;
+} );
+
+================================================================================
+FILTER HOOKS - LOGGER
+================================================================================
+
+socs/logger_options
+add_filter( 'socs/logger_options', function( $options ) {
+	$options['logger_min_level'] = 'warning';
+	$options['logger_enabled'] = true;
+	return $options;
+} );
+
+================================================================================
+TEMPLATE FUNCTION
+================================================================================
+
+socs_display_smart_import()
+// ✓ SAFE - Always check first (prevents fatal error if plugin isn't active)
+if ( function_exists( 'socs_display_smart_import' ) ) {
+	socs_display_smart_import();
+}
+
+socs_display_smart_import() - With Options
+// ✓ SAFE - Always check first (prevents fatal error if plugin isn't active)
+if ( function_exists( 'socs_display_smart_import' ) ) {
+	socs_display_smart_import( array(
+		'wrapper_class'          => 'my-custom-class',
+		'show_header'             => false,
+		'show_sidebar'            => false,
+		'load_plugin_css'         => false,
+		'show_smart_import_tabs'  => false,
+		'show_file_upload_header' => false,
+		'show_intro_text'         => false,
+	) );
+}
+
+socs_display_smart_import() - Return HTML
+// ✓ SAFE - Always check first (prevents fatal error if plugin isn't active)
+if ( function_exists( 'socs_display_smart_import' ) ) {
+	$html = socs_display_smart_import( array( 'echo' => false ) );
+}
+
+================================================================================
+CUSTOM ADMIN PAGE INTEGRATION
+================================================================================
+
+Step 1: Disable plugin menu
+add_filter( 'socs/disable_admin_menu', '__return_true' );
+
+Step 2: Create custom admin page
+function my_theme_setup_page() {
+	add_theme_page(
+		esc_html__( 'Theme Setup', 'textdomain' ),
+		esc_html__( 'Theme Setup', 'textdomain' ),
+		'manage_options',
+		'my-theme-setup',
+		'my_theme_setup_page_callback'
+	);
+}
+add_action( 'admin_menu', 'my_theme_setup_page' );
+
+Step 3: Display Smart Import interface
+function my_theme_setup_page_callback() {
+	?>
+	<div class="wrap">
+		<h1><?php esc_html_e( 'Welcome to My Theme', 'textdomain' ); ?></h1>
+		<p><?php esc_html_e( 'Get started by importing demo content:', 'textdomain' ); ?></p>
+		
+		<?php
+		// ✓ SAFE - Always check first (prevents fatal error if plugin isn't active)
+		if ( function_exists( 'socs_display_smart_import' ) ) {
+			socs_display_smart_import( array(
+				'show_header'  => false,
+				'show_sidebar' => false,
+				'wrapper_class' => 'my-theme-custom-wrapper',
+			) );
+		} else {
+			// Optional: Show notice if plugin isn't active
+			if ( current_user_can( 'install_plugins' ) ) {
+				?>
+				<div class="notice notice-warning">
+					<p>
+						<?php
+						printf(
+							esc_html__( 'Please install and activate %s to use the demo import functionality.', 'textdomain' ),
+							'<a href="' . esc_url( admin_url( 'plugin-install.php?s=smart+one+click+setup&tab=search&type=term' ) ) . '">Smart One Click Setup</a>'
+						);
+						?>
+					</p>
+				</div>
+				<?php
+			}
+		}
+		?>
+	</div>
+	<?php
+}
+
+================================================================================
+USING IMPORTHELPER CLASS
+================================================================================
+
+// ✓ SAFE - Always check class exists (prevents fatal error if plugin isn't active)
+
+use SOCS\ImportHelper;
+
+add_action( 'after_setup_theme', function() {
+	// ✓ SAFE - Check class exists before using
+	if ( class_exists( '\SOCS\ImportHelper' ) ) {
+		\SOCS\ImportHelper::add(
+			'Business Demo',
+			'',
+			get_template_directory() . '/demos/business.zip',
+			'Perfect for business websites',
+			get_template_directory_uri() . '/demos/previews/business.jpg',
+			'https://example.com/demo/business'
+		);
+	}
+} );
+
+================================================================================
+COMPLETE INTEGRATION EXAMPLE - LOCAL DEMO
+================================================================================
+
+// ✓ SAFE - Recommended: Wrap in plugin check for better practices
+if ( class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+	
+	add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
+		$theme_dir = get_template_directory();
+		$theme_uri = get_template_directory_uri();
+		
+		return array(
+			array(
+				'name'          => 'Business Demo',
+				'description'   => 'Perfect for business websites with modern design',
+				'preview_image' => $theme_uri . '/demos/previews/business.jpg',
+				'preview_url'   => 'https://demo.example.com/business',
+				'zip_path'      => $theme_dir . '/demos/business.zip',
+			),
+			array(
+				'name'          => 'Portfolio Demo',
+				'description'   => 'Ideal for creative professionals and agencies',
+				'preview_image' => $theme_uri . '/demos/previews/portfolio.jpg',
+				'preview_url'   => 'https://demo.example.com/portfolio',
+				'zip_path'      => $theme_dir . '/demos/portfolio.zip',
+			),
+		);
+	} );
+
+	add_action( 'socs/after_import', function( $selected_import ) {
+		$main_menu = get_term_by( 'name', 'Main Menu', 'nav_menu' );
+		if ( $main_menu ) {
+			set_theme_mod( 'nav_menu_locations', array(
+				'primary' => $main_menu->term_id,
+			) );
+		}
+		
+		$front_page = get_page_by_title( 'Home' );
+		if ( $front_page ) {
+			update_option( 'show_on_front', 'page' );
+			update_option( 'page_on_front', $front_page->ID );
+		}
+	} );
+	
+}
+
+================================================================================
+COMPLETE INTEGRATION EXAMPLE - REMOTE DEMO
+================================================================================
+
+// ✓ SAFE - Recommended: Wrap in plugin check for better practices
+if ( class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+	
+	add_filter( 'socs/predefined_import_files', function( $predefined_imports ) {
+		return array(
+			array(
+				'name'          => 'Business Demo',
+				'description'   => 'Perfect for business websites',
+				'preview_image' => 'https://example.com/previews/business.jpg',
+				'preview_url'   => 'https://example.com/demo/business',
+				'zip_url'       => 'https://example.com/demos/business.zip',
+			),
+		);
+	} );
+
+	add_action( 'socs/after_import', function( $selected_import ) {
+		$main_menu = get_term_by( 'name', 'Main Menu', 'nav_menu' );
+		if ( $main_menu ) {
+			set_theme_mod( 'nav_menu_locations', array(
+				'primary' => $main_menu->term_id,
+			) );
+		}
+		
+		$front_page = get_page_by_title( 'Home' );
+		if ( $front_page ) {
+			update_option( 'show_on_front', 'page' );
+			update_option( 'page_on_front', $front_page->ID );
+		}
+		
+		$blog_page = get_page_by_title( 'Blog' );
+		if ( $blog_page ) {
+			update_option( 'page_for_posts', $blog_page->ID );
+		}
+	} );
+	
+}
+
+================================================================================
+CONDITIONAL SETUP BASED ON DEMO
+================================================================================
+
+// ✓ SAFE - Recommended: Wrap in plugin check for better practices
+if ( class_exists( 'SOCS\SmartOneClickSetup' ) ) {
+	
+	add_action( 'socs/after_import', function( $selected_import ) {
+		$demo_name = isset( $selected_import['import_file_name'] ) 
+			? $selected_import['import_file_name'] 
+			: '';
+		
+		if ( 'Business Demo' === $demo_name ) {
+			$main_menu = get_term_by( 'name', 'Main Menu', 'nav_menu' );
+			if ( $main_menu ) {
+				set_theme_mod( 'nav_menu_locations', array(
+					'primary' => $main_menu->term_id,
+				) );
+			}
+			set_theme_mod( 'custom_logo', attachment_url_to_postid( 
+				get_template_directory_uri() . '/assets/images/logo-business.png' 
+			) );
+		} 
+		elseif ( 'Portfolio Demo' === $demo_name ) {
+			$portfolio_menu = get_term_by( 'name', 'Portfolio Menu', 'nav_menu' );
+			if ( $portfolio_menu ) {
+				set_theme_mod( 'nav_menu_locations', array(
+					'primary' => $portfolio_menu->term_id,
+				) );
+			}
+		}
+	} );
+	
+}
+
+================================================================================
+END OF FILE
+================================================================================
