@@ -1,5 +1,5 @@
 === Smart One Click Setup ===
-Contributors: buildbycj, Chiranjit Hazarika
+Contributors: buildbycj
 Tags: import, export, theme options, elementor, one click demo import
 Requires at least: 5.5
 Tested up to: 6.9
